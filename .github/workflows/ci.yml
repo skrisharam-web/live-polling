@@ -4,6 +4,7 @@ on:
   push:
     branches: ['**']
   pull_request:
+  workflow_dispatch:
 
 jobs:
   backend:
@@ -78,11 +79,6 @@ jobs:
           TEST_REDIS_URL: redis://localhost:6379/2
         run: go test -race -count=1 ./...
 
-      - name: Scan dependencies for known vulnerabilities
-        working-directory: backend
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          "$(go env GOPATH)/bin/govulncheck" ./...
 
   frontend:
     name: Frontend
@@ -220,3 +216,29 @@ jobs:
         run: |
           kill "$(cat /tmp/server.pid)" 2>/dev/null || true
           kill "$(cat /tmp/vite.pid)" 2>/dev/null || true
+
+  vulnerabilities:
+    name: Vulnerability scan
+    runs-on: ubuntu-latest
+
+    # Deliberately its own job with no MongoDB or Redis attached. The scan is
+    # static analysis and needs neither, and when it lived in the backend job a
+    # failure was reported underneath more than a megabyte of service-container
+    # log, which made the actual error impossible to find.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      # Pinned rather than @latest: with @latest a release of the scanner can
+      # turn a green build red without a line of this repository changing, and
+      # the same commit stops building the same way twice.
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+
+      - name: Scan
+        working-directory: backend
+        run: govulncheck -show verbose ./...
