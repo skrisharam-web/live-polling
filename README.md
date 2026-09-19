@@ -78,7 +78,9 @@ docker compose up -d                 # MongoDB on 27017, Redis on 6379
 cp .env.example backend/.env         # then set JWT_SECRET
 cd backend && go run ./cmd/server    # http://localhost:8080
 
-cd ../frontend && npm install && npm run dev   # http://localhost:5173
+cd ../frontend
+cp .env.example .env                 # points the app at the API above
+npm install && npm run dev           # http://localhost:5173
 ```
 
 `JWT_SECRET` is the only value you must supply; every other default points at the

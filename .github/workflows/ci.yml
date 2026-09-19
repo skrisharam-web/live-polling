@@ -198,6 +198,14 @@ jobs:
 
       - name: Start the frontend
         working-directory: frontend
+        # Vite substitutes these at build time and the repository's own
+        # frontend/.env is deliberately not committed, so CI has to supply them.
+        # Without them the bundle calls its own origin for /api, the dev server
+        # answers with index.html, and every request fails looking like a broken
+        # session rather than missing configuration.
+        env:
+          VITE_API_URL: http://localhost:8080
+          VITE_WS_URL: ws://localhost:8080
         run: |
           npm run dev & echo $! > /tmp/vite.pid
           for _ in $(seq 1 30); do
