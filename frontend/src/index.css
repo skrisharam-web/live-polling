@@ -34,14 +34,10 @@
   --color-warning: #8a5a00;
   --color-warning-soft: #fdf3e2;
 
-  /* Result bar palette — distinguishable without relying on hue alone,
-     because each bar is also labelled with its option text and percentage. */
-  --color-series-1: #4f46e5;
-  --color-series-2: #0891b2;
-  --color-series-3: #7c3aed;
-  --color-series-4: #0f7b4f;
-  --color-series-5: #b45309;
-  --color-series-6: #be185d;
+  /* Result bars. Trailing options share one neutral tone and the leader is drawn
+     in the brand colour, so hue carries exactly one meaning on the results screen
+     instead of six that mean nothing. */
+  --color-bar: #aab1c9;
 
   /* Spacing scale */
   --space-1: 0.25rem;
@@ -93,12 +89,7 @@
     --color-warning: #fbbf24;
     --color-warning-soft: #33260c;
 
-    --color-series-1: #8b86ff;
-    --color-series-2: #38bdf8;
-    --color-series-3: #c084fc;
-    --color-series-4: #4ade80;
-    --color-series-5: #fbbf24;
-    --color-series-6: #fb7185;
+    --color-bar: #4a5169;
 
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
@@ -129,12 +120,7 @@
   --color-warning: #fbbf24;
   --color-warning-soft: #33260c;
 
-  --color-series-1: #8b86ff;
-  --color-series-2: #38bdf8;
-  --color-series-3: #c084fc;
-  --color-series-4: #4ade80;
-  --color-series-5: #fbbf24;
-  --color-series-6: #fb7185;
+  --color-bar: #4a5169;
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);

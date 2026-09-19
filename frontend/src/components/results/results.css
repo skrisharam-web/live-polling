@@ -1,0 +1,162 @@
+/* Live results. The bars are the page, so everything else here is deliberately quiet. */
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.results__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.results__total {
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.results__total strong {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+.results__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.result {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.result__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.result__text {
+  /* An option label is content: it wraps rather than being cut off, because a
+     voter has to be able to read the whole thing. */
+  overflow-wrap: anywhere;
+}
+
+.result--leading .result__text {
+  font-weight: 650;
+}
+
+.result__numbers {
+  flex-shrink: 0;
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+  /* Tabular figures stop the digits shuffling sideways as counts change. */
+  font-variant-numeric: tabular-nums;
+}
+
+.result__count {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* A fixed-height track means the layout never moves when a vote lands. */
+.result__track {
+  height: 0.625rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+
+.result__bar {
+  height: 100%;
+  border-radius: inherit;
+  /* Trailing options are neutral so that brand colour means one thing on this
+     screen: this is the option in front. Colour is never the only signal — the
+     leading row is also bolder and carries the highest number. */
+  background: var(--color-bar);
+  /* The single piece of motion in this view: the width change is what makes a
+     vote legible as it happens. */
+  transition: width 400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.result--leading .result__bar {
+  background: var(--color-brand);
+}
+
+.result__bar--empty {
+  /* Zero votes still shows a hairline, so the row reads as a bar at 0 rather
+     than as a missing element. */
+  min-width: 3px;
+  background: var(--color-bar);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result__bar {
+    transition: none;
+  }
+}
+
+/* Connection status: small, honest, never the loudest thing on screen. */
+
+.live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.live-status__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* The word carries the meaning; the dot only reinforces it. Colour is never the
+   only signal. */
+.live-status--connected {
+  color: var(--color-success);
+}
+
+.live-status--connecting,
+.live-status--reconnecting {
+  color: var(--color-warning);
+}
+
+.live-status--disconnected {
+  color: var(--color-text-muted);
+}
+
+.live-status__retry {
+  font: inherit;
+  color: var(--color-brand);
+  background: none;
+  border: none;
+  padding: var(--space-1) var(--space-2);
+  margin: calc(var(--space-1) * -1) 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.live-status__retry:hover {
+  color: var(--color-brand-strong);
+}
+
+.results__empty {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}

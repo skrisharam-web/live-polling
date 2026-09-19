@@ -23,7 +23,7 @@ reusable.
 - Colour: `--color-brand`, `--color-brand-strong`, `--color-brand-soft`, `--color-bg`,
   `--color-surface`, `--color-surface-muted`, `--color-border`, `--color-text`,
   `--color-text-muted`, `--color-success`, `--color-danger`, `--color-warning`
-  (each status colour has a `-soft` background pair), and `--color-series-1..6` for result bars.
+  (each status colour has a `-soft` background pair), and `--color-bar` for result bars.
 - Spacing: `--space-1` … `--space-7`. Compose layouts from these only; an arbitrary `13px`
   is a bug.
 - Radius: `--radius-sm|md|lg|pill`. Shadow: `--shadow-sm|md|lg`. Motion: `--transition`.
@@ -80,8 +80,11 @@ One family (the `--font-sans` stack; `--font-mono` only for the share URL and ID
 
 - Brand colour is for action and for the leading result — not for decoration. If more than
   about 10% of a screen is brand-coloured, it is being used decoratively.
-- Result bars cycle `--color-series-1..6`, but colour is never the only carrier of meaning:
-  every bar also shows its option text, its count and its percentage.
+- Result bars are `--color-bar` except the leader, which is `--color-brand`. Six hues across
+  six options would add chroma without adding information, since every row is already
+  labelled; one accent means hue says exactly one thing here — this option is ahead. Colour is
+  never the only carrier of meaning: the leading row is also bolder, and every row shows its
+  option text, count and percentage.
 - Status colours mean state, never emphasis: success for a recorded vote, danger for a real
   failure, warning for "poll closed". Do not tint a card green just to look lively.
 - Check contrast: body text ≥ 4.5:1, large text and UI borders ≥ 3:1, in both themes.

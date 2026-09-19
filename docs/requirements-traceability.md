@@ -410,7 +410,7 @@ results refetch after every successful reconnect.
 **Architecture.** Mobile-first CSS with design tokens, semantic HTML, labelled controls,
 visible focus rings, ARIA live regions for result updates, and AA contrast.
 
-**Files.** `frontend/src/index.css`, `frontend/src/components/**`
+**Files.** `frontend/src/index.css`, `frontend/src/components/**`, `frontend/src/pages/**`
 
 **Tests.** Manual viewport checks at 375 / 768 / 1440 px; keyboard-only pass.
 
