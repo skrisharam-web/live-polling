@@ -92,3 +92,51 @@ func (r *VoteRepository) DeleteByPoll(ctx context.Context, pollID bson.ObjectID)
 	}
 	return nil
 }
+
+// CountByPoll returns the total number of votes cast in a poll.
+func (r *VoteRepository) CountByPoll(ctx context.Context, pollID bson.ObjectID) (int64, error) {
+	count, err := r.col.CountDocuments(ctx, bson.M{"pollId": pollID})
+	if err != nil {
+		return 0, apperr.Wrap(apperr.CodeInternal, "Could not count the votes.", err)
+	}
+	return count, nil
+}
+
+// TotalsByPolls returns vote totals for several polls in one round trip.
+//
+// The dashboard shows a total beside every poll. Counting them one at a time
+// would issue a query per row — the classic N+1 — so the totals are aggregated in
+// a single grouped query instead, served by the votes.pollId index.
+func (r *VoteRepository) TotalsByPolls(ctx context.Context, pollIDs []bson.ObjectID) (map[bson.ObjectID]int64, error) {
+	totals := make(map[bson.ObjectID]int64, len(pollIDs))
+	if len(pollIDs) == 0 {
+		return totals, nil
+	}
+
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.D{{Key: "pollId", Value: bson.D{{Key: "$in", Value: pollIDs}}}}}},
+		{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$pollId"},
+			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+		}}},
+	}
+
+	cursor, err := r.col.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, "Could not count the votes.", err)
+	}
+	defer func() { _ = cursor.Close(ctx) }()
+
+	var rows []struct {
+		PollID bson.ObjectID `bson:"_id"`
+		Count  int64         `bson:"count"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, apperr.Wrap(apperr.CodeInternal, "Could not count the votes.", err)
+	}
+
+	for _, row := range rows {
+		totals[row.PollID] = row.Count
+	}
+	return totals, nil
+}

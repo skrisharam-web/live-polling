@@ -48,12 +48,17 @@ func newTestAPI(t *testing.T) *testAPI {
 	}
 
 	userRepo := repositories.NewUserRepository(db)
+	pollRepo := repositories.NewPollRepository(db)
+	voteRepo := repositories.NewVoteRepository(db)
+
 	authService := services.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
+	pollService := services.NewPollService(pollRepo, voteRepo, nil)
 	cookies := handlers.NewCookieSettings(cfg)
 
 	engine := router.New(cfg, router.Dependencies{
 		Health:       handlers.NewHealthHandler(db, nil),
 		Auth:         handlers.NewAuthHandler(authService, cookies),
+		Poll:         handlers.NewPollHandler(pollService),
 		UserResolver: authService,
 	})
 

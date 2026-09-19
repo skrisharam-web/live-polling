@@ -16,6 +16,7 @@ import (
 type Dependencies struct {
 	Health       *handlers.HealthHandler
 	Auth         *handlers.AuthHandler
+	Poll         *handlers.PollHandler
 	UserResolver middleware.UserResolver
 }
 
@@ -49,6 +50,24 @@ func New(cfg *config.Config, deps Dependencies) *gin.Engine {
 		auth.POST("/logout", deps.Auth.Logout)
 		auth.GET("/me", middleware.RequireAuth(deps.UserResolver), deps.Auth.Me)
 	}
+
+	requireAuth := middleware.RequireAuth(deps.UserResolver)
+
+	// Public: anyone holding a share link can read the poll.
+	api.GET("/polls/:id", deps.Poll.Get)
+
+	// Everything that creates or changes a poll requires a session, and the
+	// service layer additionally checks that the session owns the poll.
+	polls := api.Group("/polls", requireAuth)
+	{
+		polls.POST("", deps.Poll.Create)
+		polls.GET("/:id/manage", deps.Poll.Manage)
+		polls.PATCH("/:id", deps.Poll.Update)
+		polls.DELETE("/:id", deps.Poll.Delete)
+		polls.POST("/:id/close", deps.Poll.Close)
+	}
+
+	api.GET("/me/polls", requireAuth, deps.Poll.List)
 
 	return engine
 }

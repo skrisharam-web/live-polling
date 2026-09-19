@@ -39,9 +39,12 @@ or forge them.
 `tests/integration/poll_test.go` (create → fetch round trip)
 
 **Verification.** Create a poll in the UI; the share link resolves to the poll and the
-options rendered match what was submitted.
+options rendered match what was submitted. Backend verified live with curl and by
+`TestPollLifecycle`.
 
-**Status.** `PLANNED`
+**Status.** `DONE` (backend) — `POST /api/polls` behind `RequireAuth`, owner taken from the
+session, option IDs minted server-side from crypto/rand, question/options/expiry validated.
+The UI lands in Phase 10.
 
 ---
 
@@ -60,8 +63,11 @@ only public fields (no owner e-mail, no per-voter data).
 and the payload contains no owner-private fields.
 
 **Verification.** Copy the share link, open it in a browser with no session, vote.
+`GET /api/polls/:id` verified unauthenticated, and the payload asserted free of `ownerId`
+and the owner's e-mail by `TestPollLifecycle`.
 
-**Status.** `PLANNED`
+**Status.** `IN PROGRESS` — the public read endpoint is done; voting through it lands in
+Phase 5 and the page in Phase 10.
 
 ---
 
@@ -202,12 +208,16 @@ by someone else.
 
 **Files.** `backend/internal/services/poll_service.go`
 
-**Tests.** `poll_service_test.go` + `tests/integration/poll_test.go` — user B cannot close
-or delete user A's poll.
+**Tests.** `poll_service_test.go` (`TestManagementRequiresOwnership`) and
+`tests/integration/poll_test.go` (`TestPollManagementIsOwnerOnly`,
+`TestOwnershipCannotBeClaimedInThePayload`) — a second authenticated user cannot manage,
+update, close or delete another user's poll, and cannot claim ownership through the payload.
 
-**Verification.** Attempt a cross-account close with curl; expect 403.
+**Verification.** Attempt a cross-account manage/update/close/delete with curl; all four
+return 403 FORBIDDEN and the poll is verified unchanged afterwards.
 
-**Status.** `PLANNED`
+**Status.** `DONE` — ownership is checked in `PollService.GetOwned`, which every management
+operation routes through, and the repository additionally scopes its filter by `ownerId`.
 
 ---
 

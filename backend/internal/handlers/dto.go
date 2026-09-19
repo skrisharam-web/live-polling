@@ -28,3 +28,57 @@ func newUserResponse(user *models.User) UserResponse {
 		CreatedAt: user.CreatedAt,
 	}
 }
+
+// OptionResponse is one choice as the client sees it.
+type OptionResponse struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
+}
+
+// PollResponse is the public projection of a poll. Note what is absent: the
+// owner's ID, the owner's name and anything about who voted. The share link is
+// world-readable, so this payload is written for a stranger.
+type PollResponse struct {
+	ID        string           `json:"id"`
+	Question  string           `json:"question"`
+	Options   []OptionResponse `json:"options"`
+	Status    string           `json:"status"`
+	CreatedAt time.Time        `json:"createdAt"`
+	UpdatedAt time.Time        `json:"updatedAt"`
+	ExpiresAt *time.Time       `json:"expiresAt,omitempty"`
+	// AcceptsVotes saves every client from re-deriving "active and not expired".
+	AcceptsVotes bool `json:"acceptsVotes"`
+}
+
+func newPollResponse(poll *models.Poll, now time.Time) PollResponse {
+	options := make([]OptionResponse, 0, len(poll.Options))
+	for _, opt := range poll.Options {
+		options = append(options, OptionResponse{ID: opt.ID, Text: opt.Text})
+	}
+
+	return PollResponse{
+		ID:       poll.ID.Hex(),
+		Question: poll.Question,
+		Options:  options,
+		// The effective status is reported, so a poll past its expiry reads as
+		// closed even though no write has happened yet.
+		Status:       string(poll.EffectiveStatus(now)),
+		CreatedAt:    poll.CreatedAt,
+		UpdatedAt:    poll.UpdatedAt,
+		ExpiresAt:    poll.ExpiresAt,
+		AcceptsVotes: poll.AcceptsVotes(now),
+	}
+}
+
+// PollSummaryResponse is a dashboard row: the poll plus its vote total.
+type PollSummaryResponse struct {
+	PollResponse
+	TotalVotes int64 `json:"totalVotes"`
+}
+
+func newPollSummaryResponse(poll *models.Poll, totalVotes int64, now time.Time) PollSummaryResponse {
+	return PollSummaryResponse{
+		PollResponse: newPollResponse(poll, now),
+		TotalVotes:   totalVotes,
+	}
+}

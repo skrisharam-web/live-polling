@@ -73,14 +73,19 @@ func run() error {
 	// Composition root: every dependency is constructed once, here, and passed
 	// down explicitly. No package reaches for a global.
 	userRepo := repositories.NewUserRepository(mongo)
+	pollRepo := repositories.NewPollRepository(mongo)
+	voteRepo := repositories.NewVoteRepository(mongo)
 
 	authService := services.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
+	// The Redis results cleaner is wired in Phase 6, once the counters exist.
+	pollService := services.NewPollService(pollRepo, voteRepo, nil)
 
 	cookies := handlers.NewCookieSettings(cfg)
 
 	engine := router.New(cfg, router.Dependencies{
 		Health:       handlers.NewHealthHandler(mongo, redisClient),
 		Auth:         handlers.NewAuthHandler(authService, cookies),
+		Poll:         handlers.NewPollHandler(pollService),
 		UserResolver: authService,
 	})
 
