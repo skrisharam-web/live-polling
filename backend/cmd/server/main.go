@@ -17,7 +17,9 @@ import (
 	"github.com/skrisharam-web/live-polling/backend/internal/database"
 	"github.com/skrisharam-web/live-polling/backend/internal/handlers"
 	"github.com/skrisharam-web/live-polling/backend/internal/redis"
+	"github.com/skrisharam-web/live-polling/backend/internal/repositories"
 	"github.com/skrisharam-web/live-polling/backend/internal/router"
+	"github.com/skrisharam-web/live-polling/backend/internal/services"
 )
 
 func main() {
@@ -68,8 +70,18 @@ func run() error {
 	}()
 	slog.Info("redis ready")
 
+	// Composition root: every dependency is constructed once, here, and passed
+	// down explicitly. No package reaches for a global.
+	userRepo := repositories.NewUserRepository(mongo)
+
+	authService := services.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
+
+	cookies := handlers.NewCookieSettings(cfg)
+
 	engine := router.New(cfg, router.Dependencies{
-		Health: handlers.NewHealthHandler(mongo, redisClient),
+		Health:       handlers.NewHealthHandler(mongo, redisClient),
+		Auth:         handlers.NewAuthHandler(authService, cookies),
+		UserResolver: authService,
 	})
 
 	server := &http.Server{

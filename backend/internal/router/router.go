@@ -1,5 +1,6 @@
 // Package router wires HTTP routes to handlers. Keeping the route table in one
-// file makes the entire public surface of the API readable at a glance.
+// file makes the entire public surface of the API readable at a glance, including
+// which routes are public and which sit behind authentication.
 package router
 
 import (
@@ -10,10 +11,12 @@ import (
 	"github.com/skrisharam-web/live-polling/backend/internal/middleware"
 )
 
-// Dependencies are the handlers the router needs. They are passed in rather than
-// constructed here so tests can wire fakes.
+// Dependencies are the handlers and collaborators the router needs. They are
+// passed in rather than constructed here so tests can wire fakes.
 type Dependencies struct {
-	Health *handlers.HealthHandler
+	Health       *handlers.HealthHandler
+	Auth         *handlers.AuthHandler
+	UserResolver middleware.UserResolver
 }
 
 // New builds the Gin engine with the global middleware chain and the route table.
@@ -34,6 +37,18 @@ func New(cfg *config.Config, deps Dependencies) *gin.Engine {
 	)
 
 	engine.GET("/health", deps.Health.Health)
+
+	api := engine.Group("/api")
+	api.Use(middleware.RequireJSON())
+
+	// Public: anyone may create an account or sign in.
+	auth := api.Group("/auth")
+	{
+		auth.POST("/register", deps.Auth.Register)
+		auth.POST("/login", deps.Auth.Login)
+		auth.POST("/logout", deps.Auth.Logout)
+		auth.GET("/me", middleware.RequireAuth(deps.UserResolver), deps.Auth.Me)
+	}
 
 	return engine
 }

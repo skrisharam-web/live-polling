@@ -53,6 +53,8 @@ func statusFor(code apperr.Code) int {
 		return http.StatusNotFound
 	case apperr.CodeConflict, apperr.CodeAlreadyVoted, apperr.CodePollClosed:
 		return http.StatusConflict
+	case apperr.CodeTooLarge:
+		return http.StatusRequestEntityTooLarge
 	case apperr.CodeRateLimited:
 		return http.StatusTooManyRequests
 	case apperr.CodeUnavailable:

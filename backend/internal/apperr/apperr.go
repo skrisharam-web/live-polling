@@ -20,6 +20,7 @@ const (
 	CodeAlreadyVoted Code = "ALREADY_VOTED"
 	CodePollClosed   Code = "POLL_CLOSED"
 	CodeRateLimited  Code = "RATE_LIMITED"
+	CodeTooLarge     Code = "PAYLOAD_TOO_LARGE"
 	CodeInternal     Code = "INTERNAL_ERROR"
 	CodeUnavailable  Code = "DEPENDENCY_UNAVAILABLE"
 )

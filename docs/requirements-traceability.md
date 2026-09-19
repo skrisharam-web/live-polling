@@ -181,9 +181,14 @@ the body or query.
 **Tests.** `auth_service_test.go` (hashing, token issue/verify, wrong password),
 `tests/integration/auth_test.go` (register → login → me → logout, and 401 paths)
 
-**Verification.** `POST /api/polls` without a cookie returns 401.
+**Verification.** `POST /api/polls` without a cookie returns 401 (verified live with curl,
+and asserted by `TestProtectedRouteRejectsTamperedSession`).
 
-**Status.** `PLANNED`
+**Status.** `DONE` — register/login/logout/me implemented; bcrypt cost 12 (asserted by
+`TestProductionUsesAStrongBcryptCost`); HS256 tokens pinned to one algorithm and issuer,
+expiry required; HTTP-only cookie, `SameSite=None; Secure` in production and `Lax` locally;
+login failures are indistinguishable; state-changing requests must declare JSON, which is
+the CSRF defence that replaces SameSite in production.
 
 ---
 
