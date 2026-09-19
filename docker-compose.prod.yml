@@ -1,0 +1,85 @@
+# The whole application in production mode, on one machine.
+#
+#   JWT_SECRET=$(openssl rand -base64 48) docker compose -f docker-compose.prod.yml up --build
+#
+# This is a self-hosting recipe and the way to exercise a production build
+# locally — the strict startup checks, the production cookie attributes and the
+# built frontend all behave here as they will on a real host.
+#
+# It is deliberately not the recommended production topology: MongoDB and Redis
+# in single containers on one box give you no backups and no failover. For a real
+# deployment use managed MongoDB and Redis and deploy only the two application
+# images. See docs/deployment.md.
+#
+# COOKIE_SECURE is true, so reach this through a TLS-terminating proxy. Over
+# plain http://localhost the browser will refuse to store the session cookie —
+# which is the point of the setting, not a bug in it.
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: production
+      PORT: "8080"
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: livepolling
+      REDIS_URL: redis://redis:6379/0
+      # Required. The server refuses to start in production without it, or with
+      # anything shorter than 32 characters.
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET, e.g. openssl rand -base64 48}
+      JWT_EXPIRES_IN: 24h
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8081}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # The compose network's proxy, if you put one in front. Empty means trust
+      # none and use the socket address.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the bundle at build time, so changing these means rebuilding
+        # the image. Never put a secret here: it ends up in readable JavaScript.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8080}
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
+  redis-data:

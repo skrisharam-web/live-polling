@@ -11,6 +11,7 @@ prove it, and how it is verified.
 | `PLANNED` | Designed, not yet implemented |
 | `IN PROGRESS` | Partially implemented |
 | `DONE` | Implemented, tested and verified |
+| `BLOCKED` | Everything within the codebase is done; completion needs something outside it |
 
 The final sign-off will live in `final-compliance-report.md`, written in Phase 17
 once every requirement here has been settled one way or the other.
@@ -505,16 +506,39 @@ suite actually ran rather than trusting a green tick.
 
 **Requirement.** A live, publicly reachable working link.
 
-**Architecture.** Backend container (Go, distroless) on a host that supports WebSockets;
-frontend static build on a CDN host; MongoDB Atlas; managed Redis. Production config is
-environment-driven: secure cookies, strict CORS, `wss://`.
+**Architecture.** Two deployable units — a scratch-based Go image and a static
+bundle served by nginx — against managed MongoDB and Redis. The backend host must
+support long-lived WebSocket connections, which is the constraint that rules out
+serverless runtimes billed per request.
 
-**Files.** `backend/Dockerfile`, `frontend/Dockerfile`, `infra/`, `docs/deployment.md`
+**Files.** `backend/Dockerfile`, `frontend/Dockerfile`, `frontend/nginx.conf`,
+`frontend/security-headers.conf`, `docker-compose.prod.yml`, `render.yaml`,
+`docs/deployment.md`
 
-**Verification.** Phase 16 production QA against the public URL.
+**Verification.** Everything short of provisioning has been done and checked
+against a production build running in Docker, behind TLS, with the frontend and
+API on separate origins — the same arrangement as a real deployment:
 
-**Status.** `PLANNED` — requires the developer's own hosting accounts; see
-`docs/deployment.md`.
+| Checked | Result |
+| --- | --- |
+| Backend image | builds; 43.5 MB; scratch, non-root (65532), no shell |
+| Frontend image | builds; nginx serving the built bundle |
+| Deep link `/polls/{id}` | 200 via the SPA fallback — the share link is the product |
+| Session cookie | `HttpOnly; Secure; SameSite=None; Path=/; Max-Age=86399` |
+| HSTS | `max-age=31536000; includeSubDomains` |
+| CORS | exact origin echoed; an unlisted origin gets no allow-origin header |
+| Gin mode | release (no debug output in the logs) |
+| Startup refusals | short `JWT_SECRET`, missing `JWT_SECRET`, `COOKIE_SECURE=false`, `FRONTEND_URL=*` — each exits 1 |
+| Realtime over WSS | all 19 realtime checks pass cross-origin against the production build |
+| Accessibility / UX suites | pass against the production build |
+| Redis wiped with `FLUSHALL` | results unchanged (3 votes, `[2, 1]`); counters rebuilt from MongoDB with a fresh 7-day TTL |
+
+**Remaining.** Creating the hosting accounts — MongoDB Atlas, a Redis host and a
+WebSocket-capable backend host — and running the five steps in
+[`deployment.md`](./deployment.md). That needs credentials belonging to the
+developer; it is not further code.
+
+**Status.** `BLOCKED`
 
 ---
 

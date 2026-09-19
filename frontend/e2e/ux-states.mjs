@@ -4,9 +4,15 @@ import { chromium } from 'playwright'
 // CHROMIUM_PATH overrides, and its absence means "use the bundled one" rather
 // than a path that only exists on one machine.
 const EXE = process.env.CHROMIUM_PATH
-const launch = () => chromium.launch(EXE ? { executablePath: EXE } : {})
-const APP = 'http://localhost:5173'
-const API = 'http://localhost:8080'
+const launch = () =>
+  chromium.launch({
+    ...(EXE ? { executablePath: EXE } : {}),
+    // Only for testing a production build behind a self-signed certificate; the
+    // point of that run is the cookie and WebSocket behaviour, not the cert.
+    ...(process.env.INSECURE_TLS ? { args: ['--ignore-certificate-errors'] } : {}),
+  })
+const APP = process.env.APP_URL ?? 'http://localhost:5173'
+const API = process.env.API_URL ?? 'http://localhost:8080'
 const state = JSON.parse(process.env.STATE ?? '{}')
 const browser = await launch()
 const results = []

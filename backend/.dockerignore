@@ -1,0 +1,10 @@
+# Keep the build context to what the build actually needs.
+.env
+.env.*
+*_test.go
+tests/
+bin/
+server
+*.out
+Dockerfile
+.dockerignore
