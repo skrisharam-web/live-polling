@@ -16,6 +16,7 @@ import (
 	"github.com/skrisharam-web/live-polling/backend/internal/config"
 	"github.com/skrisharam-web/live-polling/backend/internal/database"
 	"github.com/skrisharam-web/live-polling/backend/internal/handlers"
+	"github.com/skrisharam-web/live-polling/backend/internal/middleware"
 	"github.com/skrisharam-web/live-polling/backend/internal/redis"
 	"github.com/skrisharam-web/live-polling/backend/internal/repositories"
 	"github.com/skrisharam-web/live-polling/backend/internal/router"
@@ -79,14 +80,21 @@ func run() error {
 	authService := services.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
 	// The Redis results cleaner is wired in Phase 6, once the counters exist.
 	pollService := services.NewPollService(pollRepo, voteRepo, nil)
+	resultService := services.NewResultService(voteRepo)
+	voteService := services.NewVoteService(pollRepo, voteRepo, resultService)
 
-	cookies := handlers.NewCookieSettings(cfg)
+	cookies := middleware.NewCookieSettings(cfg)
+	// The voter cookie is signed with the same secret as the session token: both
+	// are server-issued identities and both must be unforgeable.
+	voterIdentity := middleware.NewVoterIdentity(cfg.JWTSecret, cookies)
 
 	engine := router.New(cfg, router.Dependencies{
 		Health:       handlers.NewHealthHandler(mongo, redisClient),
 		Auth:         handlers.NewAuthHandler(authService, cookies),
 		Poll:         handlers.NewPollHandler(pollService),
+		Vote:         handlers.NewVoteHandler(voteService),
 		UserResolver: authService,
+		Voter:        voterIdentity,
 	})
 
 	server := &http.Server{

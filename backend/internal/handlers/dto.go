@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/skrisharam-web/live-polling/backend/internal/models"
+	"github.com/skrisharam-web/live-polling/backend/internal/services"
 )
 
 // The types here are the API's wire format. They exist separately from the domain
@@ -80,5 +81,49 @@ func newPollSummaryResponse(poll *models.Poll, totalVotes int64, now time.Time) 
 	return PollSummaryResponse{
 		PollResponse: newPollResponse(poll, now),
 		TotalVotes:   totalVotes,
+	}
+}
+
+// OptionResultResponse is one option's standing.
+//
+// The count is sent, not a percentage: a percentage is a presentation decision,
+// and letting the server and the client each round it independently is how a
+// results view ends up showing 33% three times and a total of 99%.
+type OptionResultResponse struct {
+	OptionID string `json:"optionId"`
+	Text     string `json:"text"`
+	Count    int64  `json:"count"`
+}
+
+// ResultsResponse is a poll's standing as the client sees it.
+type ResultsResponse struct {
+	PollID     string                 `json:"pollId"`
+	Results    []OptionResultResponse `json:"results"`
+	TotalVotes int64                  `json:"totalVotes"`
+	Status     string                 `json:"status"`
+	ComputedAt time.Time              `json:"computedAt"`
+	// YourVote is the option this browser already chose, if any. It is derived
+	// from the requester's own voter cookie, so it reveals nothing about anyone
+	// else.
+	YourVote string `json:"yourVote,omitempty"`
+}
+
+func newResultsResponse(results *services.Results, yourVote string) ResultsResponse {
+	rows := make([]OptionResultResponse, 0, len(results.Options))
+	for _, option := range results.Options {
+		rows = append(rows, OptionResultResponse{
+			OptionID: option.OptionID,
+			Text:     option.Text,
+			Count:    option.Count,
+		})
+	}
+
+	return ResultsResponse{
+		PollID:     results.PollID,
+		Results:    rows,
+		TotalVotes: results.TotalVotes,
+		Status:     string(results.Status),
+		ComputedAt: results.ComputedAt,
+		YourVote:   yourVote,
 	}
 }

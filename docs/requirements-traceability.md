@@ -63,11 +63,11 @@ only public fields (no owner e-mail, no per-voter data).
 and the payload contains no owner-private fields.
 
 **Verification.** Copy the share link, open it in a browser with no session, vote.
-`GET /api/polls/:id` verified unauthenticated, and the payload asserted free of `ownerId`
-and the owner's e-mail by `TestPollLifecycle`.
+`GET /api/polls/:id`, `POST /api/polls/:id/vote` and `GET /api/polls/:id/results` all verified
+unauthenticated, and the poll payload asserted free of `ownerId` and the owner's e-mail.
 
-**Status.** `IN PROGRESS` — the public read endpoint is done; voting through it lands in
-Phase 5 and the page in Phase 10.
+**Status.** `DONE` (backend) — read, vote and results are all public. The page lands in
+Phase 10.
 
 ---
 
@@ -85,9 +85,14 @@ identifies the voter server-side from that cookie — never from the request bod
 
 **Tests.** `vote_service_test.go`, `tests/integration/vote_test.go`
 
-**Verification.** Vote from a private window with no account.
+**Verification.** Vote from a private window with no account — verified live: a client with
+only a `lp_voter` cookie and no session voted successfully, and no session cookie was created.
 
-**Status.** `PLANNED`
+**Status.** `DONE` — signed, HTTP-only `lp_voter` cookie issued on first contact; the vote
+endpoint reads the voter only from that cookie, and the vote request type has no voter field.
+Forged, unsigned and tampered cookies are all rejected and replaced
+(`TestForgedVoterCookieIsIgnored`). The honest limit — clearing cookies or using another
+browser yields a new identity — is documented in `docs/security.md`.
 
 ---
 
@@ -255,13 +260,18 @@ uniqueness guarantee lives in the database, so it holds under concurrency.
 `backend/internal/repositories/vote_repository.go`,
 `backend/internal/services/vote_service.go`
 
-**Tests.** `tests/integration/vote_test.go` (second vote → 409),
-`tests/integration/concurrency_test.go` (N goroutines, one voter: exactly one insert wins)
+**Tests.** `tests/integration/vote_test.go` (second vote → 409, tally unchanged),
+`tests/integration/concurrency_test.go`: 40 concurrent inserts for one voter → exactly 1
+succeeds and 39 report ALREADY_VOTED; 20 concurrent votes through the real HTTP stack with
+one cookie → 1 created, 19 conflicts; and 60 simultaneous distinct voters → all 60 counted,
+proving the rule does not drop legitimate concurrent traffic.
 
-**Verification.** Vote twice from the same browser; second attempt is refused and the
-counter does not move.
+**Verification.** Vote twice from the same browser; second attempt is refused (409
+ALREADY_VOTED) and the counter does not move — verified live with curl and in MongoDB
+(`db.votes.countDocuments()` = 2 for two distinct voters, not 3).
 
-**Status.** `PLANNED`
+**Status.** `DONE` — enforced by the unique `(pollId, voterId)` index, not by a
+read-then-write check, so it holds under concurrency and across backend instances.
 
 ---
 

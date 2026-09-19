@@ -1,4 +1,4 @@
-package handlers
+package middleware
 
 import (
 	"net/http"
@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/skrisharam-web/live-polling/backend/internal/config"
-	"github.com/skrisharam-web/live-polling/backend/internal/middleware"
 )
 
 // CookieSettings turns configuration into the flags every cookie this API issues
@@ -41,9 +40,9 @@ func NewCookieSettings(cfg *config.Config) CookieSettings {
 	}
 }
 
-// set writes a cookie with the configured policy. maxAge is in seconds; a
+// Set writes a cookie with the configured policy. maxAge is in seconds; a
 // negative value deletes the cookie.
-func (s CookieSettings) set(c *gin.Context, name, value string, maxAge int) {
+func (s CookieSettings) Set(c *gin.Context, name, value string, maxAge int) {
 	c.SetSameSite(s.SameSite)
 	// HttpOnly is always true: nothing in this application needs to read its own
 	// cookies from JavaScript, and making them unreadable removes the value of an
@@ -53,11 +52,11 @@ func (s CookieSettings) set(c *gin.Context, name, value string, maxAge int) {
 
 // SetSession issues the session cookie.
 func (s CookieSettings) SetSession(c *gin.Context, token string, maxAgeSeconds int) {
-	s.set(c, middleware.SessionCookieName, token, maxAgeSeconds)
+	s.Set(c, SessionCookieName, token, maxAgeSeconds)
 }
 
 // ClearSession removes the session cookie. The attributes must match the ones it
 // was set with, or the browser keeps the original cookie.
 func (s CookieSettings) ClearSession(c *gin.Context) {
-	s.set(c, middleware.SessionCookieName, "", -1)
+	s.Set(c, SessionCookieName, "", -1)
 }

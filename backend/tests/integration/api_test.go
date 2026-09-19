@@ -53,13 +53,17 @@ func newTestAPI(t *testing.T) *testAPI {
 
 	authService := services.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
 	pollService := services.NewPollService(pollRepo, voteRepo, nil)
-	cookies := handlers.NewCookieSettings(cfg)
+	resultService := services.NewResultService(voteRepo)
+	voteService := services.NewVoteService(pollRepo, voteRepo, resultService)
+	cookies := middleware.NewCookieSettings(cfg)
 
 	engine := router.New(cfg, router.Dependencies{
 		Health:       handlers.NewHealthHandler(db, nil),
 		Auth:         handlers.NewAuthHandler(authService, cookies),
 		Poll:         handlers.NewPollHandler(pollService),
+		Vote:         handlers.NewVoteHandler(voteService),
 		UserResolver: authService,
+		Voter:        middleware.NewVoterIdentity(cfg.JWTSecret, cookies),
 	})
 
 	return &testAPI{t: t, engine: engine, cookies: make(map[string]string)}

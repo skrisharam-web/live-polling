@@ -17,7 +17,9 @@ type Dependencies struct {
 	Health       *handlers.HealthHandler
 	Auth         *handlers.AuthHandler
 	Poll         *handlers.PollHandler
+	Vote         *handlers.VoteHandler
 	UserResolver middleware.UserResolver
+	Voter        *middleware.VoterIdentity
 }
 
 // New builds the Gin engine with the global middleware chain and the route table.
@@ -53,8 +55,13 @@ func New(cfg *config.Config, deps Dependencies) *gin.Engine {
 
 	requireAuth := middleware.RequireAuth(deps.UserResolver)
 
-	// Public: anyone holding a share link can read the poll.
+	// Public: anyone holding a share link can read the poll, vote in it and see
+	// the results. The voter middleware gives these routes an anonymous identity
+	// so a vote can be tied to a browser without an account.
+	withVoter := deps.Voter.Middleware()
 	api.GET("/polls/:id", deps.Poll.Get)
+	api.POST("/polls/:id/vote", withVoter, deps.Vote.Vote)
+	api.GET("/polls/:id/results", withVoter, deps.Vote.Results)
 
 	// Everything that creates or changes a poll requires a session, and the
 	// service layer additionally checks that the session owns the poll.

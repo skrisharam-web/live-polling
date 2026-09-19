@@ -560,3 +560,13 @@ func TestExpiredPollReadsAsClosed(t *testing.T) {
 		t.Error("an expired poll must not accept votes")
 	}
 }
+
+// repoUpdateStatus and repoUpdateExpiry keep the vote tests readable where they
+// need to drive a poll into a particular state.
+func repoUpdateStatus(status models.PollStatus) repositories.PollUpdate {
+	return repositories.PollUpdate{Status: &status}
+}
+
+func repoUpdateExpiry(expiresAt *time.Time) repositories.PollUpdate {
+	return repositories.PollUpdate{ExpiresAt: expiresAt}
+}

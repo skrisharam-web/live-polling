@@ -21,10 +21,10 @@ type authService interface {
 // AuthHandler exposes registration and session management over HTTP.
 type AuthHandler struct {
 	auth    authService
-	cookies CookieSettings
+	cookies middleware.CookieSettings
 }
 
-func NewAuthHandler(auth authService, cookies CookieSettings) *AuthHandler {
+func NewAuthHandler(auth authService, cookies middleware.CookieSettings) *AuthHandler {
 	return &AuthHandler{auth: auth, cookies: cookies}
 }
 
