@@ -12,7 +12,8 @@ prove it, and how it is verified.
 | `IN PROGRESS` | Partially implemented |
 | `DONE` | Implemented, tested and verified |
 
-The final sign-off lives in [`final-compliance-report.md`](./final-compliance-report.md).
+The final sign-off will live in `final-compliance-report.md`, written in Phase 17
+once every requirement here has been settled one way or the other.
 
 ---
 
@@ -524,7 +525,15 @@ environment-driven: secure cookies, strict CORS, `wss://`.
 **Files.** `README.md`, `docs/architecture.md`, `docs/api.md`, `docs/realtime.md`,
 `docs/database.md`, `docs/security.md`, `docs/deployment.md`, this file.
 
-**Status.** `PLANNED`
+**Verification.** All seven exist and every internal link resolves. The API
+examples are responses captured from a running server rather than written by hand,
+and each document was checked against the code while being written — which caught
+four inaccuracies that would otherwise have shipped: the option maximum is 10 and
+not 20, `expiresAt` existed but was undocumented, the hub's channel types were
+named wrongly in an architecture snippet, and the stated Go version was too low
+(`golang.org/x/crypto` requires 1.26, which is why the directive is what it is).
+
+**Status.** `DONE`
 
 ---
 
