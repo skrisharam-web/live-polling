@@ -159,6 +159,7 @@ docs/                  architecture, API, realtime, database, security, deployme
 | [security.md](docs/security.md) | What is defended, how, and what is not |
 | [deployment.md](docs/deployment.md) | Configuration, hosting requirements, going to production |
 | [requirements-traceability.md](docs/requirements-traceability.md) | Each requirement mapped to code, tests and evidence |
+| [final-compliance-report.md](docs/final-compliance-report.md) | The final sign-off: status of all 20 requirements, test results, what the process caught |
 
 ---
 

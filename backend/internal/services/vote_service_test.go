@@ -137,10 +137,10 @@ func TestCastVote(t *testing.T) {
 	})
 
 	t.Run("the voter's own choice can be read back", func(t *testing.T) {
-		if got := f.svc.VoteOf(ctx, f.poll.ID, "voter-1"); got != "opt-a" {
+		if got := f.svc.VoteOf(ctx, f.poll.ID.Hex(), "voter-1"); got != "opt-a" {
 			t.Errorf("VoteOf() = %q, want opt-a", got)
 		}
-		if got := f.svc.VoteOf(ctx, f.poll.ID, "voter-never"); got != "" {
+		if got := f.svc.VoteOf(ctx, f.poll.ID.Hex(), "voter-never"); got != "" {
 			t.Errorf("VoteOf() for a voter who has not voted = %q, want empty", got)
 		}
 	})

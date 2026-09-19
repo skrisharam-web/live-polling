@@ -13,8 +13,8 @@ prove it, and how it is verified.
 | `DONE` | Implemented, tested and verified |
 | `BLOCKED` | Everything within the codebase is done; completion needs something outside it |
 
-The final sign-off will live in `final-compliance-report.md`, written in Phase 17
-once every requirement here has been settled one way or the other.
+The final sign-off is in
+[`final-compliance-report.md`](./final-compliance-report.md).
 
 ---
 
@@ -327,9 +327,30 @@ business rules; repositories hold persistence. In the frontend: `api/` for trans
 **Tests.** Enforced by review; services are unit-tested without any Gin dependency, which
 is only possible if the layering holds.
 
-**Verification.** Phase 17 review checklist.
+**Verification.** Checked mechanically in the Phase 17 review rather than asserted:
 
-**Status.** `PLANNED`
+| Check | Result |
+| --- | --- |
+| Gin imported in `services`, `repositories`, `models` or `validation` | none — the layering claim is load-bearing, not decorative |
+| Handlers touching MongoDB or Redis directly | none, after the fix below |
+| Business rules in repositories | none; they return `NOT_FOUND` and wrapped internal errors only |
+| Frontend components or pages calling `fetch` | none; transport stays in `api/` |
+
+The review found one real leak: `VoteHandler.Results` parsed a hex string into a
+`bson.ObjectID` so it could call `VoteOf`. Which string shapes are valid identifiers is a
+persistence detail, and a handler that knows it has to import the database driver to ask.
+The parsing moved into the service and `vote_handler.go` no longer imports the driver at
+all. Verified afterwards against the production build: `yourVote` is still returned for a
+voter who has voted, still absent for one who has not, and a malformed poll id still
+answers 404.
+
+One deliberate compromise remains: `models.User.ID` and `models.Poll.ID` are typed
+`bson.ObjectID`, so that type appears in service signatures. Replacing it with a domain id
+type would touch every layer for a naming benefit, and the driver type is not doing
+anything a domain type would do differently. Recorded here rather than quietly fixed or
+quietly ignored.
+
+**Status.** `DONE`
 
 ---
 
@@ -565,7 +586,20 @@ named wrongly in an architecture snippet, and the stated Go version was too low
 
 **Requirement.** Public repo, live link, 3–5 minute video.
 
-**Owner.** The developer. The repo is produced here; the live link needs hosting accounts;
-the video must be recorded by the developer and is **mandatory**.
+**Owner.** The developer, for two of the three.
 
-**Status.** `PLANNED`
+| Artifact | State |
+| --- | --- |
+| Public GitHub repository | The code, tests, documentation and deployment config are pushed to `skrisharam-web/live-polling`. It needs to be made **public** before submission, and a pull request opened and merged |
+| Live, publicly reachable link | Blocked on hosting accounts — see R18. Everything short of provisioning is verified |
+| 3–5 minute video | **Not started, and mandatory.** It has to be recorded by the developer; nothing in this repository can produce it |
+
+The brief is explicit that the video is not optional, and equally explicit about why: the
+reviewers know candidates use AI, and the interview rounds test whether the developer
+understands what was built. The parts of this system worth being able to explain without
+notes are the unique `(pollId, voterId)` index standing in for a read-then-write check,
+the Lua script that refuses to increment a cold key, one Redis subscription per process
+rather than per browser, and full tallies rather than deltas on the wire. Each of those is
+a decision with an alternative that looks reasonable and is wrong.
+
+**Status.** `BLOCKED`

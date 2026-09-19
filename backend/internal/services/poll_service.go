@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"log/slog"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -282,8 +283,13 @@ func (s *PollService) Delete(ctx context.Context, ownerID bson.ObjectID, pollID 
 	}
 	if s.results != nil {
 		// Redis holds only derived data, so failing to clear it must not fail the
-		// delete. The handler logs it; the key is orphaned, not wrong.
-		_ = s.results.DeleteResults(ctx, poll.ID.Hex())
+		// delete: the key is orphaned, not wrong, and it carries a TTL. It is
+		// logged rather than discarded, because a cache that repeatedly refuses to
+		// delete is worth knowing about even when it cannot break a request.
+		if err := s.results.DeleteResults(ctx, poll.ID.Hex()); err != nil {
+			slog.Warn("could not clear cached results for a deleted poll",
+				"poll_id", poll.ID.Hex(), "error", err)
+		}
 	}
 	return nil
 }

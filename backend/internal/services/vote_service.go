@@ -131,11 +131,19 @@ func (s *VoteService) Results(ctx context.Context, pollID string) (*Results, err
 // VoteOf returns the option this voter already chose, or "" if they have not
 // voted. It is what lets a returning voter see their own choice instead of an
 // empty ballot they cannot use.
-func (s *VoteService) VoteOf(ctx context.Context, pollID bson.ObjectID, voterID string) string {
+func (s *VoteService) VoteOf(ctx context.Context, pollID string, voterID string) string {
 	if voterID == "" {
 		return ""
 	}
-	vote, err := s.votes.FindByPollAndVoter(ctx, pollID, voterID)
+
+	// Parsing the id belongs here rather than in the handler: which string shapes
+	// are valid identifiers is a persistence detail, and a handler that knows it
+	// has to import the database driver to ask.
+	id, err := bson.ObjectIDFromHex(pollID)
+	if err != nil {
+		return ""
+	}
+	vote, err := s.votes.FindByPollAndVoter(ctx, id, voterID)
 	if err != nil {
 		// Not having voted is the common case, and a lookup failure must not stop
 		// the results being shown, so both collapse to "no recorded choice".

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/skrisharam-web/live-polling/backend/internal/apperr"
 	"github.com/skrisharam-web/live-polling/backend/internal/middleware"
@@ -16,7 +15,7 @@ import (
 type voteService interface {
 	Cast(ctx context.Context, pollID, optionID, voterID string) (*services.Results, error)
 	Results(ctx context.Context, pollID string) (*services.Results, error)
-	VoteOf(ctx context.Context, pollID bson.ObjectID, voterID string) string
+	VoteOf(ctx context.Context, pollID string, voterID string) string
 }
 
 // VoteHandler exposes voting and results. Both routes are public: holding the
@@ -69,10 +68,7 @@ func (h *VoteHandler) Results(c *gin.Context) {
 
 	yourVote := ""
 	if voterID, ok := middleware.CurrentVoterID(c); ok {
-		pollID, err := bson.ObjectIDFromHex(results.PollID)
-		if err == nil {
-			yourVote = h.votes.VoteOf(c.Request.Context(), pollID, voterID)
-		}
+		yourVote = h.votes.VoteOf(c.Request.Context(), results.PollID, voterID)
 	}
 
 	response.OK(c, newResultsResponse(results, yourVote))
