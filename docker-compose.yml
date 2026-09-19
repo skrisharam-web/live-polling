@@ -1,0 +1,44 @@
+# Local development dependencies.
+#
+#   docker compose up -d
+#
+# The application itself runs on the host (`go run ./cmd/server` and `npm run dev`)
+# so that edit/reload stays fast. Only the stateful pieces live in Docker.
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: livepolling-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: livepolling-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    # Persistence is on so a restart does not wipe the live counters. Losing them
+    # is survivable either way — they are rebuilt from MongoDB on demand — but
+    # keeping them avoids an unnecessary rebuild.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongo-data:
+  redis-data:
