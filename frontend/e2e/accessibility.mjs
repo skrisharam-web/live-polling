@@ -1,10 +1,14 @@
 import { chromium } from 'playwright'
 
-const EXE = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+// This sandbox ships a browser at a fixed path; CI installs Playwright's own.
+// CHROMIUM_PATH overrides, and its absence means "use the bundled one" rather
+// than a path that only exists on one machine.
+const EXE = process.env.CHROMIUM_PATH
+const launch = () => chromium.launch(EXE ? { executablePath: EXE } : {})
 const APP = 'http://localhost:5173'
 const state = JSON.parse(process.env.STATE ?? '{}')
 const pollId = process.env.POLL_ID
-const browser = await chromium.launch({ executablePath: EXE })
+const browser = await launch()
 
 /** WCAG relative luminance and contrast ratio, computed in the page. */
 const CONTRAST_FN = `

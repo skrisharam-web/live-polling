@@ -1,16 +1,39 @@
 import { chromium } from 'playwright'
 
-const EXE = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+// This sandbox ships a browser at a fixed path; CI installs Playwright's own.
+// CHROMIUM_PATH overrides, and its absence means "use the bundled one" rather
+// than a path that only exists on one machine.
+const EXE = process.env.CHROMIUM_PATH
+const launch = () => chromium.launch(EXE ? { executablePath: EXE } : {})
 const APP = 'http://localhost:5173'
 const API = 'http://localhost:8080'
 const state = JSON.parse(process.env.STATE ?? '{}')
-const pollId = process.env.POLL_ID
-const browser = await chromium.launch({ executablePath: EXE })
+const browser = await launch()
 const results = []
 const check = (label, ok, detail = '') => {
   results.push(`${ok ? '✓' : '✗'} ${label}${detail ? ` — ${detail}` : ''}`)
   return ok
 }
+
+// ---- FIXTURE ----------------------------------------------------------------
+// The checks below vote, read percentages and count result rows, so they need a
+// poll with known options. Creating it here rather than taking a POLL_ID keeps
+// the script's assertions and the data they run against in one place — an
+// environment variable pointing at some existing poll is a dependency that
+// silently rots the moment that poll is voted in or deleted.
+const pollId = await (async () => {
+  const ctx = await browser.newContext({ storageState: state })
+  const p = await ctx.newPage()
+  await p.goto(`${APP}/polls/new`, { waitUntil: 'networkidle' })
+  await p.getByLabel('Question').fill('Which branch should we cut the release from?')
+  await p.getByLabel('Option 1').fill('The one with tests')
+  await p.getByLabel('Option 2').fill('The one that is ready')
+  await p.getByRole('button', { name: 'Create poll' }).click()
+  await p.getByText('Your poll is live').waitFor({ timeout: 10000 })
+  const id = (await p.locator('.share__url').innerText()).split('/polls/')[1]
+  await ctx.close()
+  return id
+})()
 
 // ---- EMPTY ------------------------------------------------------------------
 // A poll created for this check alone, so the assertion does not depend on what

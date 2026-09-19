@@ -177,10 +177,20 @@ export function usePollWebSocket(pollId: string | undefined, options: Options): 
   }, [pollId, enabled, connect, clearRetry])
 
   /**
-   * Two browser signals are worth acting on immediately rather than waiting out
-   * a backoff delay: coming back online, and the tab becoming visible again.
-   * Phones suspend sockets on background tabs, so without this a viewer who
-   * switches apps comes back to a frozen result.
+   * Three browser signals are worth acting on immediately rather than waiting
+   * out a backoff delay: coming back online, the tab becoming visible again,
+   * and going offline.
+   *
+   * Phones suspend sockets on background tabs, so without the first two a viewer
+   * who switches apps comes back to a frozen result.
+   *
+   * The third matters for a different reason. A socket with no traffic on it
+   * does not notice a dead network: nothing fails until a write is attempted or
+   * the server's ping goes unanswered, which can leave the badge claiming "Live"
+   * for the best part of a minute after the connection is gone. The browser
+   * knows immediately, so close the socket and let the normal retry path take
+   * over. A badge whose whole job is to be honest about the connection must not
+   * be the last thing to find out.
    */
   useEffect(() => {
     if (!pollId || !enabled) return
@@ -191,10 +201,16 @@ export function usePollWebSocket(pollId: string | undefined, options: Options): 
       connect()
     }
 
+    const dropOnOffline = () => {
+      socketRef.current?.close(CLOSE_GOING_AWAY)
+    }
+
     window.addEventListener('online', retryNow)
+    window.addEventListener('offline', dropOnOffline)
     document.addEventListener('visibilitychange', retryNow)
     return () => {
       window.removeEventListener('online', retryNow)
+      window.removeEventListener('offline', dropOnOffline)
       document.removeEventListener('visibilitychange', retryNow)
     }
   }, [pollId, enabled, connect])

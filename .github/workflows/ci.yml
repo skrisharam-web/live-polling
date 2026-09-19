@@ -1,0 +1,222 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    # Real Mongo and Redis rather than fakes. The parts of this system most
+    # worth testing — a unique index rejecting a duplicate vote under
+    # concurrency, a Lua script refusing to increment a cold key, Pub/Sub
+    # fan-out — are behaviours of those servers. A mock would only assert that
+    # the mock behaves the way the author assumed.
+    services:
+      mongodb:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+
+    env:
+      TEST_MONGODB_URI: mongodb://localhost:27017
+      TEST_REDIS_URL: redis://localhost:6379/1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Verify formatting
+        working-directory: backend
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt'd:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: Vet
+        working-directory: backend
+        run: go vet ./...
+
+      # Without the environment variables above, the integration suite skips
+      # itself and the run goes green having proved nothing. This asserts the
+      # suite actually ran.
+      - name: Test
+        working-directory: backend
+        run: go test -count=1 ./... 2>&1 | tee test.log
+
+      - name: Fail if the integration suite skipped
+        working-directory: backend
+        run: |
+          if grep -q "no test files" test.log && ! grep -qE "^ok\s+.*tests/integration" test.log; then
+            echo "The integration suite did not run — check TEST_MONGODB_URI and TEST_REDIS_URL."
+            exit 1
+          fi
+
+      # Split from the plain run because the race detector makes the concurrency
+      # tests roughly ten times slower, and a failure here means something
+      # different: not "the behaviour is wrong" but "two goroutines touched the
+      # same memory". Keeping them apart says which one broke.
+      - name: Test with the race detector
+        working-directory: backend
+        env:
+          TEST_REDIS_URL: redis://localhost:6379/2
+        run: go test -race -count=1 ./...
+
+      - name: Scan dependencies for known vulnerabilities
+        working-directory: backend
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      # tsc runs as part of the build, so a type error fails here rather than
+      # reaching a deployment.
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Audit production dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+  browser:
+    name: Browser checks
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    services:
+      mongodb:
+        image: mongo:7
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install the browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Start the API
+        working-directory: backend
+        env:
+          APP_ENV: development
+          PORT: '8080'
+          MONGODB_URI: mongodb://localhost:27017
+          MONGODB_DATABASE: livepolling_ci
+          REDIS_URL: redis://localhost:6379/3
+          JWT_EXPIRES_IN: 24h
+          FRONTEND_URL: http://localhost:5173
+          COOKIE_SECURE: 'false'
+        run: |
+          go build -o /tmp/server ./cmd/server
+          # Generated per run rather than written down. Nothing here needs to
+          # outlive the job, and a repository should not contain a string that
+          # looks like a signing key even when it is only a test one.
+          export JWT_SECRET="$(openssl rand -hex 32)"
+          /tmp/server & echo $! > /tmp/server.pid
+          for _ in $(seq 1 30); do
+            curl -fsS http://localhost:8080/health && break
+            sleep 1
+          done
+
+      - name: Start the frontend
+        working-directory: frontend
+        run: |
+          npm run dev & echo $! > /tmp/vite.pid
+          for _ in $(seq 1 30); do
+            curl -fsS http://localhost:5173/ >/dev/null && break
+            sleep 1
+          done
+
+      # These drive a real browser, so they cover what only exists in one:
+      # rendered contrast, focus order, and three independent sessions watching
+      # a tally move over a WebSocket.
+      - name: Seed a session and a poll
+        run: |
+          EMAIL="ci+$(date +%s)@example.com"
+          curl -sS -c /tmp/jar -X POST http://localhost:8080/api/auth/register \
+            -H 'Content-Type: application/json' \
+            -d "{\"name\":\"CI\",\"email\":\"$EMAIL\",\"password\":\"correct-horse-battery\"}" > /dev/null
+          POLL=$(curl -sS -b /tmp/jar -X POST http://localhost:8080/api/polls \
+            -H 'Content-Type: application/json' \
+            -d '{"question":"Does CI work?","options":["Yes","No"]}')
+          echo "POLL_ID=$(echo "$POLL" | jq -r .data.poll.id)" >> "$GITHUB_ENV"
+          SESSION=$(awk '/lp_session/ {print $7}' /tmp/jar)
+          echo "STATE={\"cookies\":[{\"name\":\"lp_session\",\"value\":\"$SESSION\",\"domain\":\"localhost\",\"path\":\"/\",\"expires\":-1,\"httpOnly\":true,\"secure\":false,\"sameSite\":\"Lax\"}],\"origins\":[]}" >> "$GITHUB_ENV"
+
+      - name: Accessibility
+        working-directory: frontend
+        run: node e2e/accessibility.mjs
+
+      - name: Async states, keyboard and motion
+        working-directory: frontend
+        run: node e2e/ux-states.mjs
+
+      - name: Realtime across three browser sessions
+        working-directory: frontend
+        run: node e2e/realtime.mjs
+
+      - name: Stop the servers
+        if: always()
+        run: |
+          kill "$(cat /tmp/server.pid)" 2>/dev/null || true
+          kill "$(cat /tmp/vite.pid)" 2>/dev/null || true

@@ -124,10 +124,24 @@ run under `-race`), and `tests/integration/websocket_test.go` over real sockets:
 connect, a vote reaching four watchers, room isolation, close delivery, 404 before upgrade,
 the origin allow-list, and disconnect cleanup.
 
-**Verification.** Browser A (owner results), Browser B and C (public poll): a vote in B
-updates A and C with no refresh, and vice versa.
+**Verification.** Done in Phase 13 with four independent browser sessions, scripted as
+`frontend/e2e/realtime.mjs` so it can be re-run rather than remembered. A vote cast in B
+appeared on A (the owner, watching results) and on C (a bystander who never voted), with
+zero navigations recorded on any page. Every layer was checked for that same poll rather
+than inferred from the screen:
 
-**Status.** `PLANNED`
+| Layer | Evidence |
+| --- | --- |
+| MongoDB | 2 vote documents, 2 distinct `voterId`s, correct option ids |
+| Redis counters | `HGETALL poll:{id}:results` → `1` and `1`, TTL refreshed to ~7 days |
+| Redis Pub/Sub | `PSUBSCRIBE poll:*:updates` captured both events, each carrying the full tally (`totalVotes` 1, then 2) |
+| WebSocket | frames recorded in-page by a wrapper installed before any application code, so a refetch cannot account for the update |
+| React | totals moved 0 → 1 → 2 with `framenavigated` count unchanged |
+
+The reconnect gap is covered too: with C's network cut, a vote it could not receive was
+cast, and on reconnecting C refetched and recovered the missed vote without reloading.
+
+**Status.** `DONE`
 
 ---
 
@@ -257,10 +271,16 @@ details. A body-size limit rejects oversized payloads before decoding.
 **Tests.** `validation/validation_test.go` (table-driven), plus negative cases in every
 service test.
 
-**Verification.** curl with an empty question, 1 option, 30 options, a 10 000-character
-question, an option ID from a different poll — each is rejected with 422/400.
+**Verification.** Run against the live API in Phase 13. Every case is rejected with
+`422 VALIDATION_ERROR` and a field-level detail rather than a bare refusal: empty question,
+1 option, 30 options, a 10 000-character question, duplicate options, no options at all,
+and an option ID that belongs to no poll. Sample body:
 
-**Status.** `PLANNED`
+```json
+{"success":false,"error":{"code":"VALIDATION_ERROR","message":"Please correct the highlighted fields.","fields":{"options":"Add at least 2 options."}}}
+```
+
+**Status.** `DONE`
 
 ---
 
@@ -405,10 +425,25 @@ results refetch after every successful reconnect.
 
 **Tests.** `websocket/hub_test.go`, `go test -race ./...`
 
-**Verification.** Kill the backend with the poll page open; the badge shows
-`reconnecting`, then `connected`, and the results are correct afterwards.
+**Verification.** Both halves were exercised in Phase 13.
 
-**Status.** `PLANNED`
+*Server death*, done by hand with a results page open: the badge read `Live`, the backend
+was killed, and the badge moved to `Reconnecting…` while the last known results stayed on
+screen rather than the view blanking. On restart it returned to `Live`, and a vote cast
+afterwards arrived live without a reload.
+
+*Network loss*, scripted in `frontend/e2e/realtime.mjs` so it runs on every CI build: a
+watching session is taken offline, a vote it cannot receive is cast, and on reconnecting it
+refetches and recovers the missed vote — the gap Pub/Sub cannot close by itself, because a
+message missed while disconnected is gone for good.
+
+That second check found a real defect, now fixed: an idle socket does not notice a dead
+network until a write fails or the server's ping goes unanswered, so the badge kept
+claiming `Live` for up to a minute after the connection had gone. The hook now also listens
+for the browser's `offline` event and closes the socket itself, which is the one thing a
+badge whose entire job is honesty must not get wrong.
+
+**Status.** `DONE`
 
 ---
 
@@ -440,13 +475,28 @@ mouse. Reduced motion is honoured (bars snap instead of animating).
 
 **Architecture.** Unit tests for services/validation/websocket with no external
 dependencies; integration tests against real Mongo and Redis, skipped automatically when
-those aren't configured; race detector in CI.
+those aren't configured; race detector and browser checks in CI.
 
-**Files.** `backend/**/*_test.go`, `backend/tests/integration/**`, `.github/workflows/ci.yml`
+**Files.** `backend/**/*_test.go`, `backend/tests/integration/**`,
+`frontend/e2e/{accessibility,ux-states,realtime}.mjs`, `.github/workflows/ci.yml`
 
-**Verification.** `go test ./...`, `go test -race ./...`, `npm run lint`, `npm run build`.
+**Verification.** All run in Phase 13 against live Mongo and Redis:
 
-**Status.** `PLANNED`
+| Run | Result |
+| --- | --- |
+| `go vet ./...` / `go build ./...` | clean |
+| `go test -count=1 ./...` (integration enabled) | pass, 26.7s in the integration suite |
+| `go test -race -count=1 ./...` | pass, no data race reported, 272.7s |
+| `npm run lint` / `npm run build` | clean |
+| `node e2e/accessibility.mjs` | 54 screen/theme/width combinations pass |
+| `node e2e/ux-states.mjs` | 18 checks pass |
+| `node e2e/realtime.mjs` | 19 checks pass across four browser sessions |
+
+A bare `go test ./...` without `TEST_MONGODB_URI` and `TEST_REDIS_URL` skips the
+integration suite and still reports success, so CI sets both and then asserts the
+suite actually ran rather than trusting a green tick.
+
+**Status.** `DONE`
 
 ---
 
