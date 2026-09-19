@@ -21,6 +21,7 @@ type Dependencies struct {
 	Auth         *handlers.AuthHandler
 	Poll         *handlers.PollHandler
 	Vote         *handlers.VoteHandler
+	WebSocket    *handlers.WebSocketHandler
 	UserResolver middleware.UserResolver
 	Voter        *middleware.VoterIdentity
 	// Limiter is the Redis-backed rate limiter. A nil limiter disables rate
@@ -102,6 +103,13 @@ func New(cfg *config.Config, deps Dependencies) *gin.Engine {
 	}
 
 	api.GET("/me/polls", requireAuth, deps.Poll.List)
+
+	// The realtime endpoint sits outside /api because it is not a REST resource
+	// and because the body-limit and JSON middleware above make no sense for a
+	// hijacked connection.
+	if deps.WebSocket != nil {
+		engine.GET("/ws/polls/:id", deps.WebSocket.Subscribe)
+	}
 
 	return engine
 }

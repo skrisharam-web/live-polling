@@ -117,9 +117,11 @@ process, a hub with per-poll rooms, and a React hook holding the socket.
 `backend/internal/services/realtime_service.go`, `backend/internal/websocket/{hub,client,manager}.go`,
 `backend/internal/handlers/websocket_handler.go`, `frontend/src/hooks/usePollWebSocket.ts`
 
-**Tests.** `websocket/hub_test.go` (fan-out, disconnect), `tests/integration/realtime_test.go`
-(vote via HTTP → event arrives on two concurrent WebSocket clients), plus the manual
-three-browser test in [`realtime.md`](./realtime.md).
+**Tests.** `internal/websocket/hub_test.go` (fan-out, room isolation, unregister, double
+unregister, empty-room reclamation, slow-client eviction, shutdown, and a concurrency test
+run under `-race`), and `tests/integration/websocket_test.go` over real sockets: snapshot on
+connect, a vote reaching four watchers, room isolation, close delivery, 404 before upgrade,
+the origin allow-list, and disconnect cleanup.
 
 **Verification.** Browser A (owner results), Browser B and C (public poll): a vote in B
 updates A and C with no refresh, and vice versa.

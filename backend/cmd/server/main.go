@@ -21,6 +21,7 @@ import (
 	"github.com/skrisharam-web/live-polling/backend/internal/repositories"
 	"github.com/skrisharam-web/live-polling/backend/internal/router"
 	"github.com/skrisharam-web/live-polling/backend/internal/services"
+	"github.com/skrisharam-web/live-polling/backend/internal/websocket"
 )
 
 func main() {
@@ -87,6 +88,14 @@ func run() error {
 	pollService := services.NewPollService(pollRepo, voteRepo, resultService, broadcaster)
 	voteService := services.NewVoteService(pollRepo, voteRepo, resultService, broadcaster)
 
+	// The hub and its Redis subscription start before the HTTP server, so no
+	// connection can be accepted before there is something to feed it.
+	hub := websocket.NewHub()
+	if err := websocket.NewManager(hub, realtimeService).Run(ctx); err != nil {
+		return err
+	}
+	slog.Info("realtime fan-out ready")
+
 	cookies := middleware.NewCookieSettings(cfg)
 	// The voter cookie is signed with the same secret as the session token: both
 	// are server-issued identities and both must be unforgeable.
@@ -97,6 +106,7 @@ func run() error {
 		Auth:         handlers.NewAuthHandler(authService, cookies),
 		Poll:         handlers.NewPollHandler(pollService),
 		Vote:         handlers.NewVoteHandler(voteService),
+		WebSocket:    handlers.NewWebSocketHandler(hub, pollService, resultService, cfg.AllowedOrigins),
 		UserResolver: authService,
 		Voter:        voterIdentity,
 		Limiter:      redisClient,

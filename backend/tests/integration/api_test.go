@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/skrisharam-web/live-polling/backend/internal/repositories"
 	"github.com/skrisharam-web/live-polling/backend/internal/router"
 	"github.com/skrisharam-web/live-polling/backend/internal/services"
+	ws "github.com/skrisharam-web/live-polling/backend/internal/websocket"
 )
 
 // testAPI drives the real router — the same middleware chain, handlers, services
@@ -76,6 +78,19 @@ func newTestAPI(t *testing.T) *testAPI {
 
 	pollService := services.NewPollService(pollRepo, voteRepo, resultService, broadcaster)
 	voteService := services.NewVoteService(pollRepo, voteRepo, resultService, broadcaster)
+
+	// The hub and its subscription are part of the application under test, so the
+	// realtime tests exercise the same wiring the server runs.
+	hub := ws.NewHub()
+	var realtimeStream services.EventSubscriber
+	if redisClient != nil {
+		realtimeStream = redisClient
+	}
+	hubCtx, stopHub := context.WithCancel(context.Background())
+	t.Cleanup(stopHub)
+	if err := ws.NewManager(hub, services.NewRealtimeService(nil, realtimeStream)).Run(hubCtx); err != nil {
+		t.Fatalf("start realtime fan-out: %v", err)
+	}
 	cookies := middleware.NewCookieSettings(cfg)
 
 	engine := router.New(cfg, router.Dependencies{
@@ -83,6 +98,7 @@ func newTestAPI(t *testing.T) *testAPI {
 		Auth:         handlers.NewAuthHandler(authService, cookies),
 		Poll:         handlers.NewPollHandler(pollService),
 		Vote:         handlers.NewVoteHandler(voteService),
+		WebSocket:    handlers.NewWebSocketHandler(hub, pollService, resultService, cfg.AllowedOrigins),
 		UserResolver: authService,
 		Voter:        middleware.NewVoterIdentity(cfg.JWTSecret, cookies),
 		Limiter:      limiter,
