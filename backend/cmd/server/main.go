@@ -32,11 +32,11 @@ func main() {
 }
 
 func run() error {
+	// Starting with a broken configuration is worse than not starting at all, so
+	// this is a hard stop. main logs the error; logging it here too would print
+	// the same failure twice.
 	cfg, err := config.Load()
 	if err != nil {
-		// Logging is not configured yet, so write plainly and stop: starting with
-		// a broken configuration is worse than not starting at all.
-		slog.Error("invalid configuration", "error", err)
 		return err
 	}
 	configureLogging(cfg)

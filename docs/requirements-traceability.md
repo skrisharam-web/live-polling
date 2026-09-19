@@ -323,11 +323,19 @@ credentials, and error responses that never leak internals.
 **Files.** `backend/internal/middleware/*.go`, `backend/internal/response/response.go`,
 `backend/internal/config/config.go`, `docs/security.md`
 
-**Tests.** `middleware/*_test.go`, `response/response_test.go`
+**Tests.** `tests/integration/api_test.go` (cookie flags, CORS, CSRF content type, oversized
+bodies, security headers), `auth_service_test.go` (token forgery, enumeration),
+`poll_service_test.go` and `poll_test.go` (ownership), plus a 24-check adversarial suite run
+against the live server.
 
-**Verification.** Phase 12 audit, documented in `docs/security.md`.
+**Verification.** Phase 12 audit: 24/24 adversarial checks pass (authentication bypass,
+authorization bypass, NoSQL operator injection, mass assignment, output safety, error
+leakage, transport). In a real browser, stored `<img onerror>`, `<script>` and `<svg onload>`
+payloads render as inert text with no script execution. Production cookies carry
+`HttpOnly; Secure; SameSite=None`, and production refuses to start with a short secret,
+insecure cookies or a wildcard origin. Written up in `docs/security.md`.
 
-**Status.** `PLANNED`
+**Status.** `DONE`
 
 ---
 

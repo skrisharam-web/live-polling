@@ -60,6 +60,7 @@ func New(cfg *config.Config, deps Dependencies) *gin.Engine {
 
 	engine.Use(
 		middleware.RequestID(),
+		middleware.SecurityHeaders(cfg.IsProduction()),
 		middleware.Recovery(),
 		middleware.RequestLogger(),
 		middleware.CORS(cfg.AllowedOrigins),

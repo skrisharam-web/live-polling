@@ -64,9 +64,11 @@ func newTestAPI(t *testing.T) *testAPI {
 	// would be non-nil and every call would dereference it.
 	var counters services.LiveCounters
 	var limiter middleware.Limiter
+	var health *handlers.HealthHandler = handlers.NewHealthHandler(db, nil)
 	if redisClient != nil {
 		counters = redisClient
 		limiter = redisClient
+		health = handlers.NewHealthHandler(db, redisClient)
 	}
 	resultService := services.NewResultService(voteRepo, counters)
 
@@ -94,7 +96,7 @@ func newTestAPI(t *testing.T) *testAPI {
 	cookies := middleware.NewCookieSettings(cfg)
 
 	engine := router.New(cfg, router.Dependencies{
-		Health:       handlers.NewHealthHandler(db, nil),
+		Health:       health,
 		Auth:         handlers.NewAuthHandler(authService, cookies),
 		Poll:         handlers.NewPollHandler(pollService),
 		Vote:         handlers.NewVoteHandler(voteService),
@@ -402,4 +404,33 @@ func TestOversizedBodyIsRejected(t *testing.T) {
 	rec, res := api.register("Ada", "ada@example.com", strings.Repeat("x", 100_000))
 	assertStatus(t, rec, http.StatusRequestEntityTooLarge)
 	assertErrorCode(t, res, "PAYLOAD_TOO_LARGE")
+}
+
+// TestSecurityHeaders pins the hardening headers. They are the kind of thing
+// that gets dropped in a refactor and noticed by nobody until it matters.
+func TestSecurityHeaders(t *testing.T) {
+	api := newTestAPI(t)
+
+	// Any endpoint will do — the headers are set for every response — and a poll
+	// read does not depend on which dependencies this run has configured.
+	rec, _ := api.do(http.MethodGet, "/api/polls/000000000000000000000000", nil)
+	assertStatus(t, rec, http.StatusNotFound)
+
+	expected := map[string]string{
+		"X-Content-Type-Options":  "nosniff",
+		"X-Frame-Options":         "DENY",
+		"Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+		"Referrer-Policy":         "strict-origin-when-cross-origin",
+	}
+	for name, want := range expected {
+		if got := rec.Header().Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+
+	// HSTS is a production-only header: sending it from a development server over
+	// plain HTTP would pin localhost to HTTPS in the developer's browser.
+	if got := rec.Header().Get("Strict-Transport-Security"); got != "" {
+		t.Errorf("Strict-Transport-Security = %q, want it unset outside production", got)
+	}
 }
