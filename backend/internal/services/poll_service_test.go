@@ -128,26 +128,38 @@ func (f *fakeResultsCleaner) DeleteResults(_ context.Context, pollID string) err
 	return f.err
 }
 
+// fakeAnnouncer records which polls were announced to viewers.
+type fakeAnnouncer struct {
+	announced []string
+}
+
+func (f *fakeAnnouncer) AnnouncePoll(_ context.Context, poll *models.Poll) {
+	f.announced = append(f.announced, poll.ID.Hex())
+}
+
 type pollFixture struct {
-	svc     *PollService
-	polls   *fakePollStore
-	votes   *fakeVoteCounter
-	results *fakeResultsCleaner
-	owner   bson.ObjectID
-	other   bson.ObjectID
+	svc       *PollService
+	polls     *fakePollStore
+	votes     *fakeVoteCounter
+	results   *fakeResultsCleaner
+	announcer *fakeAnnouncer
+	owner     bson.ObjectID
+	other     bson.ObjectID
 }
 
 func newPollFixture() *pollFixture {
 	polls := newFakePollStore()
 	votes := newFakeVoteCounter()
 	results := &fakeResultsCleaner{}
+	announcer := &fakeAnnouncer{}
 	return &pollFixture{
-		svc:     NewPollService(polls, votes, results),
-		polls:   polls,
-		votes:   votes,
-		results: results,
-		owner:   bson.NewObjectID(),
-		other:   bson.NewObjectID(),
+		svc:       NewPollService(polls, votes, results, announcer),
+		polls:     polls,
+		votes:     votes,
+		results:   results,
+		announcer: announcer,
+		owner:     bson.NewObjectID(),
+		other:     bson.NewObjectID(),
 	}
 }
 
@@ -455,6 +467,13 @@ func TestClosePoll(t *testing.T) {
 	if closed.AcceptsVotes(time.Now().UTC()) {
 		t.Error("a closed poll must not accept votes")
 	}
+
+	t.Run("closing announces the change to everyone watching", func(t *testing.T) {
+		// A viewer should see the poll close without trying to vote to find out.
+		if len(f.announcer.announced) != 1 || f.announcer.announced[0] != poll.ID.Hex() {
+			t.Errorf("announced = %v, want exactly this poll", f.announcer.announced)
+		}
+	})
 
 	t.Run("closing again is not an error", func(t *testing.T) {
 		again, err := f.svc.Close(ctx, f.owner, poll.ID.Hex())

@@ -147,11 +147,13 @@ updates A and C with no refresh, and vice versa.
 **Tests.** `redis/counters_test.go`, `redis/publisher_test.go`, `middleware/rate_limit_test.go`
 
 **Verification.** `redis-cli HGETALL poll:{id}:results` matches MongoDB's aggregation —
-verified live (3/1 in both after four votes, TTL 604800). Pub/Sub verification lands in
-Phase 7.
+verified live (3/1 in both after four votes, TTL 604800). `redis-cli PSUBSCRIBE
+'poll:*:updates'` showed one `poll_results_updated` message per accepted vote with a
+climbing total, and a further message with `status: closed` when the owner closed the poll.
 
-**Status.** `IN PROGRESS` — counters and rate limiting are done and Redis now serves the
-read hot path. The Pub/Sub job lands in Phase 7.
+**Status.** `DONE` — all three Redis jobs are real: the counters serve the read hot path,
+Pub/Sub carries every result change between instances, and the rate limiter is a shared
+fixed-window counter.
 
 Two details worth naming, because they are what make the counters trustworthy:
 an increment against a **cold** key is refused by a Lua script and turned into a rebuild,

@@ -67,8 +67,15 @@ func newTestAPI(t *testing.T) *testAPI {
 		limiter = redisClient
 	}
 	resultService := services.NewResultService(voteRepo, counters)
-	pollService := services.NewPollService(pollRepo, voteRepo, resultService)
-	voteService := services.NewVoteService(pollRepo, voteRepo, resultService)
+
+	var bus services.EventPublisher
+	if redisClient != nil {
+		bus = redisClient
+	}
+	broadcaster := services.NewResultBroadcaster(resultService, services.NewRealtimeService(bus, nil))
+
+	pollService := services.NewPollService(pollRepo, voteRepo, resultService, broadcaster)
+	voteService := services.NewVoteService(pollRepo, voteRepo, resultService, broadcaster)
 	cookies := middleware.NewCookieSettings(cfg)
 
 	engine := router.New(cfg, router.Dependencies{

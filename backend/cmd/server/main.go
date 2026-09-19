@@ -79,8 +79,13 @@ func run() error {
 
 	authService := services.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
 	resultService := services.NewResultService(voteRepo, redisClient)
-	pollService := services.NewPollService(pollRepo, voteRepo, resultService)
-	voteService := services.NewVoteService(pollRepo, voteRepo, resultService)
+	realtimeService := services.NewRealtimeService(redisClient, redisClient)
+	// One object announces poll standings, whether the trigger is a vote or a
+	// management action such as closing the poll.
+	broadcaster := services.NewResultBroadcaster(resultService, realtimeService)
+
+	pollService := services.NewPollService(pollRepo, voteRepo, resultService, broadcaster)
+	voteService := services.NewVoteService(pollRepo, voteRepo, resultService, broadcaster)
 
 	cookies := middleware.NewCookieSettings(cfg)
 	// The voter cookie is signed with the same secret as the session token: both

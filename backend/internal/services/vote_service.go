@@ -27,20 +27,30 @@ type VoteStore interface {
 	FindByPollAndVoter(ctx context.Context, pollID bson.ObjectID, voterID string) (*models.Vote, error)
 }
 
-// VoteService records votes and returns the resulting standing.
-type VoteService struct {
-	polls   PollReader
-	votes   VoteStore
-	results *ResultService
-	now     func() time.Time
+// Broadcaster announces a poll's new standing to everyone watching it.
+type Broadcaster interface {
+	PublishResults(ctx context.Context, results *Results)
 }
 
-func NewVoteService(polls PollReader, votes VoteStore, results *ResultService) *VoteService {
+// VoteService records votes and returns the resulting standing.
+type VoteService struct {
+	polls     PollReader
+	votes     VoteStore
+	results   *ResultService
+	broadcast Broadcaster
+	now       func() time.Time
+}
+
+// NewVoteService builds the service. broadcast may be nil, in which case votes
+// are still recorded and results still correct — the application simply stops
+// pushing them.
+func NewVoteService(polls PollReader, votes VoteStore, results *ResultService, broadcast Broadcaster) *VoteService {
 	return &VoteService{
-		polls:   polls,
-		votes:   votes,
-		results: results,
-		now:     func() time.Time { return time.Now().UTC() },
+		polls:     polls,
+		votes:     votes,
+		results:   results,
+		broadcast: broadcast,
+		now:       func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -94,7 +104,19 @@ func (s *VoteService) Cast(ctx context.Context, pollID, optionID, voterID string
 
 	s.results.RecordVote(ctx, poll, optionID)
 
-	return s.results.ForPoll(ctx, poll)
+	results, err := s.results.ForPoll(ctx, poll)
+	if err != nil {
+		return nil, err
+	}
+
+	// Announce the new standing to every viewer, wherever they are connected.
+	// This is the step that makes the poll live; it is also the step that is
+	// allowed to fail quietly, because the vote itself is already durable.
+	if s.broadcast != nil {
+		s.broadcast.PublishResults(ctx, results)
+	}
+
+	return results, nil
 }
 
 // Results returns a poll's standing for anyone holding the link.

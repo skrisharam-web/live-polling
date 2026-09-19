@@ -49,6 +49,10 @@ type PollService struct {
 	polls   PollStore
 	votes   VoteCounter
 	results ResultsCleaner
+	// announcer lets a management action — closing a poll — reach the people
+	// currently looking at it, instead of them finding out when they next try to
+	// vote.
+	announcer PollAnnouncer
 
 	now func() time.Time
 	// dashboardLimit caps how many polls a dashboard request returns, so a single
@@ -56,11 +60,20 @@ type PollService struct {
 	dashboardLimit int64
 }
 
-func NewPollService(polls PollStore, votes VoteCounter, results ResultsCleaner) *PollService {
+// PollAnnouncer pushes a poll's current standing to everyone watching it.
+type PollAnnouncer interface {
+	AnnouncePoll(ctx context.Context, poll *models.Poll)
+}
+
+// NewPollService builds the service. results and announcer may be nil, which
+// degrades the Redis cleanup and the live close notification respectively while
+// leaving poll management itself working.
+func NewPollService(polls PollStore, votes VoteCounter, results ResultsCleaner, announcer PollAnnouncer) *PollService {
 	return &PollService{
 		polls:          polls,
 		votes:          votes,
 		results:        results,
+		announcer:      announcer,
 		now:            func() time.Time { return time.Now().UTC() },
 		dashboardLimit: 100,
 	}
@@ -238,7 +251,15 @@ func (s *PollService) Close(ctx context.Context, ownerID bson.ObjectID, pollID s
 	}
 
 	closed := models.PollStatusClosed
-	return s.polls.Update(ctx, poll.ID, ownerID, repositories.PollUpdate{Status: &closed})
+	updated, err := s.polls.Update(ctx, poll.ID, ownerID, repositories.PollUpdate{Status: &closed})
+	if err != nil {
+		return nil, err
+	}
+
+	if s.announcer != nil {
+		s.announcer.AnnouncePoll(ctx, updated)
+	}
+	return updated, nil
 }
 
 // Delete removes a poll, its votes and its derived Redis state.
