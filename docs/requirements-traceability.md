@@ -160,7 +160,8 @@ are restored from Mongo.
 
 **Verification.** `docker compose restart redis`, reload the results page, counts are intact.
 
-**Status.** `PLANNED`
+**Status.** `IN PROGRESS` — MongoDB side done (models, repositories, aggregation,
+`tests/integration/repositories_test.go`). The Redis rebuild lands in Phase 6.
 
 ---
 
@@ -311,7 +312,8 @@ uniqueness flags.
 
 **Verification.** `db.votes.getIndexes()`.
 
-**Status.** `PLANNED`
+**Status.** `DONE` — created at startup, documented in `docs/database.md`, asserted by
+`tests/integration/indexes_test.go` (keys and uniqueness flags).
 
 ---
 
