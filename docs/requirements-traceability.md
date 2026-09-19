@@ -146,10 +146,17 @@ updates A and C with no refresh, and vice versa.
 
 **Tests.** `redis/counters_test.go`, `redis/publisher_test.go`, `middleware/rate_limit_test.go`
 
-**Verification.** `redis-cli HGETALL poll:{id}:results` matches the UI;
-`redis-cli SUBSCRIBE poll:{id}:updates` shows an event per vote.
+**Verification.** `redis-cli HGETALL poll:{id}:results` matches MongoDB's aggregation —
+verified live (3/1 in both after four votes, TTL 604800). Pub/Sub verification lands in
+Phase 7.
 
-**Status.** `PLANNED`
+**Status.** `IN PROGRESS` — counters and rate limiting are done and Redis now serves the
+read hot path. The Pub/Sub job lands in Phase 7.
+
+Two details worth naming, because they are what make the counters trustworthy:
+an increment against a **cold** key is refused by a Lua script and turned into a rebuild,
+so a Redis restart cannot leave a hash holding one vote that looks authoritative; and a
+rebuild replaces the hash inside a transaction, so no reader sees a half-built tally.
 
 ---
 
@@ -169,10 +176,14 @@ so Redis can be flushed or lost with no data loss.
 **Tests.** `tests/integration/result_rebuild_test.go` — flush Redis, read results, counts
 are restored from Mongo.
 
-**Verification.** `docker compose restart redis`, reload the results page, counts are intact.
+**Verification.** Flush Redis, reload the results — counts are intact and Redis is
+repopulated. Verified live: after `FLUSHDB`, `GET /api/polls/:id/results` still reported
+4 votes (3/1) and the hash was rebuilt as a side effect.
 
-**Status.** `IN PROGRESS` — MongoDB side done (models, repositories, aggregation,
-`tests/integration/repositories_test.go`). The Redis rebuild lands in Phase 6.
+**Status.** `DONE` — a vote is acknowledged only after the MongoDB write; Redis is updated
+afterwards and every failure there is logged and survivable. `ResultService.Rebuild`
+re-derives the counters from the votes collection, so Redis can be flushed, expired or lost
+with no data loss.
 
 ---
 
@@ -354,11 +365,17 @@ reconnect, so a missed event self-heals.
 
 **Files.** `backend/internal/services/{vote_service,result_service}.go`
 
-**Tests.** `tests/integration/result_rebuild_test.go`, plus a manual Redis-restart drill.
+**Tests.** `internal/services/result_service_test.go` (warm read, cold rebuild, Redis read
+failure, drifted counters, cold increment, increment failure) and
+`tests/integration/reconciliation_test.go` (real flush mid-flight, vote into cold counters,
+counters cleared on poll delete). `TestRateLimitFailsOpenWhenRedisIsUnavailable` closes the
+Redis client outright and asserts voting still works.
 
-**Verification.** Stop Redis, vote, restart Redis, reload — counts are correct.
+**Verification.** Flush Redis, vote, reload — counts are correct and the hash is rebuilt.
+Verified live, including a vote arriving while the counters were cold: the voter saw the
+full tally (5) and Redis ended up holding 3 and 2, not a partial 1.
 
-**Status.** `PLANNED`
+**Status.** `DONE`
 
 ---
 

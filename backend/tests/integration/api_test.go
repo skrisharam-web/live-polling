@@ -15,6 +15,7 @@ import (
 	"github.com/skrisharam-web/live-polling/backend/internal/config"
 	"github.com/skrisharam-web/live-polling/backend/internal/handlers"
 	"github.com/skrisharam-web/live-polling/backend/internal/middleware"
+	"github.com/skrisharam-web/live-polling/backend/internal/redis"
 	"github.com/skrisharam-web/live-polling/backend/internal/repositories"
 	"github.com/skrisharam-web/live-polling/backend/internal/router"
 	"github.com/skrisharam-web/live-polling/backend/internal/services"
@@ -26,6 +27,10 @@ import (
 type testAPI struct {
 	t      *testing.T
 	engine *gin.Engine
+	// redis is the counter store the API is wired to, so a test can inspect or
+	// wipe it and watch the application reconcile. nil when Redis is not
+	// configured.
+	redis *redis.Client
 	// cookies is a tiny cookie jar, so a test can behave like a browser and carry
 	// its session from one request to the next.
 	cookies map[string]string
@@ -52,8 +57,17 @@ func newTestAPI(t *testing.T) *testAPI {
 	voteRepo := repositories.NewVoteRepository(db)
 
 	authService := services.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
-	pollService := services.NewPollService(pollRepo, voteRepo, nil)
-	resultService := services.NewResultService(voteRepo)
+	redisClient := newTestRedis(t)
+	// A nil *redis.Client must be passed as an untyped nil, or the interface
+	// would be non-nil and every call would dereference it.
+	var counters services.LiveCounters
+	var limiter middleware.Limiter
+	if redisClient != nil {
+		counters = redisClient
+		limiter = redisClient
+	}
+	resultService := services.NewResultService(voteRepo, counters)
+	pollService := services.NewPollService(pollRepo, voteRepo, resultService)
 	voteService := services.NewVoteService(pollRepo, voteRepo, resultService)
 	cookies := middleware.NewCookieSettings(cfg)
 
@@ -64,9 +78,10 @@ func newTestAPI(t *testing.T) *testAPI {
 		Vote:         handlers.NewVoteHandler(voteService),
 		UserResolver: authService,
 		Voter:        middleware.NewVoterIdentity(cfg.JWTSecret, cookies),
+		Limiter:      limiter,
 	})
 
-	return &testAPI{t: t, engine: engine, cookies: make(map[string]string)}
+	return &testAPI{t: t, engine: engine, redis: redisClient, cookies: make(map[string]string)}
 }
 
 // apiResponse mirrors the envelope every endpoint returns.

@@ -85,9 +85,14 @@ func (s *VoteService) Cast(ctx context.Context, pollID, optionID, voterID string
 		VoterID:   voterID,
 		CreatedAt: s.now(),
 	}
+	// MongoDB first. The vote is not acknowledged until it is durably stored, so
+	// there is no state in which the application reports a vote that does not
+	// exist. Everything after this line is cache maintenance.
 	if err := s.votes.Create(ctx, vote); err != nil {
 		return nil, err
 	}
+
+	s.results.RecordVote(ctx, poll, optionID)
 
 	return s.results.ForPoll(ctx, poll)
 }

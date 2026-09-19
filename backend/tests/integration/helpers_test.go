@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/skrisharam-web/live-polling/backend/internal/database"
+	"github.com/skrisharam-web/live-polling/backend/internal/redis"
 )
 
 // mongoURI returns the configured test server, or "" when integration tests
@@ -74,4 +75,56 @@ func testContext(t *testing.T) context.Context {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	t.Cleanup(cancel)
 	return ctx
+}
+
+// redisURL returns the configured test Redis server, or "" when Redis-backed
+// tests should be skipped.
+func redisURL() string {
+	if url := os.Getenv("TEST_REDIS_URL"); url != "" {
+		return url
+	}
+	return os.Getenv("REDIS_URL")
+}
+
+// newTestRedis connects to Redis and flushes the database it is pointed at, so
+// each test starts with no counters. It returns nil when Redis is not
+// configured, which is a supported mode: the result service then serves every
+// read from MongoDB, and the tests that need Redis skip themselves.
+//
+// Point TEST_REDIS_URL at a scratch database (…/1), never at the one the running
+// application uses, because this flushes it.
+func newTestRedis(t *testing.T) *redis.Client {
+	t.Helper()
+
+	url := redisURL()
+	if url == "" {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := redis.Connect(ctx, url)
+	if err != nil {
+		t.Fatalf("connect to test redis: %v", err)
+	}
+	if err := client.Raw().FlushDB(ctx).Err(); err != nil {
+		t.Fatalf("flush test redis: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if err := client.Close(); err != nil {
+			t.Logf("could not close test redis: %v", err)
+		}
+	})
+	return client
+}
+
+// requireRedis skips a test that cannot run without Redis.
+func requireRedis(t *testing.T, client *redis.Client) *redis.Client {
+	t.Helper()
+	if client == nil {
+		t.Skip("set TEST_REDIS_URL (e.g. redis://localhost:6379/1) to run Redis-backed tests")
+	}
+	return client
 }

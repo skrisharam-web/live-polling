@@ -78,9 +78,8 @@ func run() error {
 	voteRepo := repositories.NewVoteRepository(mongo)
 
 	authService := services.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiresIn)
-	// The Redis results cleaner is wired in Phase 6, once the counters exist.
-	pollService := services.NewPollService(pollRepo, voteRepo, nil)
-	resultService := services.NewResultService(voteRepo)
+	resultService := services.NewResultService(voteRepo, redisClient)
+	pollService := services.NewPollService(pollRepo, voteRepo, resultService)
 	voteService := services.NewVoteService(pollRepo, voteRepo, resultService)
 
 	cookies := middleware.NewCookieSettings(cfg)
@@ -95,6 +94,7 @@ func run() error {
 		Vote:         handlers.NewVoteHandler(voteService),
 		UserResolver: authService,
 		Voter:        voterIdentity,
+		Limiter:      redisClient,
 	})
 
 	server := &http.Server{

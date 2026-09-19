@@ -45,6 +45,13 @@ type Config struct {
 	CookieSecure bool
 	CookieDomain string
 
+	// TrustedProxies lists the proxies whose X-Forwarded-For header may be
+	// believed. It is empty by default because trusting an untrusted proxy means
+	// any client can spoof its own IP, which would make the rate limiter useless.
+	// A deployment behind a platform load balancer sets this to that balancer's
+	// range.
+	TrustedProxies []string
+
 	// MaxRequestBodyBytes caps any JSON payload the API will read.
 	MaxRequestBodyBytes int64
 
@@ -77,6 +84,7 @@ func Load() (*Config, error) {
 	cfg.JWTExpiresIn = expiry
 
 	cfg.AllowedOrigins = splitOrigins(getEnv("FRONTEND_URL", "http://localhost:5173"))
+	cfg.TrustedProxies = splitList(os.Getenv("TRUSTED_PROXIES"))
 
 	// Cookies must be Secure in production; in development the frontend is served
 	// over plain HTTP, where a Secure cookie would simply never be sent.
@@ -130,6 +138,21 @@ func (c *Config) validate() error {
 		}
 	}
 	return nil
+}
+
+// splitList parses a comma-separated setting into a trimmed, non-empty list.
+func splitList(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	values := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			values = append(values, trimmed)
+		}
+	}
+	return values
 }
 
 func splitOrigins(raw string) []string {

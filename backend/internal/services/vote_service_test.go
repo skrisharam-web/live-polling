@@ -84,7 +84,9 @@ func newVoteFixture(t *testing.T) *voteFixture {
 	}
 
 	return &voteFixture{
-		svc:   NewVoteService(polls, votes, NewResultService(votes)),
+		// nil counters: these tests are about the vote rules, and MongoDB alone
+		// gives the same answers. The Redis paths have their own tests.
+		svc:   NewVoteService(polls, votes, NewResultService(votes, nil)),
 		polls: polls,
 		votes: votes,
 		poll:  poll,
