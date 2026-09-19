@@ -249,10 +249,25 @@ Stated plainly, because a security document that lists only strengths is not one
 5. **A fixed window is coarse**: a client can send the limit at the end of one
    window and again at the start of the next. A sliding window would cost more per
    request for a benefit this application does not need.
-6. **`govulncheck` could not run in the build environment** (its database host is
-   blocked by the network policy). It belongs in CI, where it can reach
-   `vuln.go.dev`. `npm audit` reports no vulnerabilities in production
-   dependencies.
+6. **`govulncheck` cannot run in the development sandbox** — its database host,
+   `vuln.go.dev`, is denied by that environment's network policy. It runs in CI,
+   in its own job, and a finding fails the build.
+
+   That scan earned its place immediately: it failed, and the cause was the
+   toolchain rather than this code. `go.mod` declares `go 1.26.0` as the minimum
+   language version, and `actions/setup-go` with `go-version-file` installs
+   exactly that — the first 1.26 release, whose standard library carries 22 known
+   vulnerabilities fixed across 1.26.1 to 1.26.6 (`html/template` escaping
+   bypasses, an `os` root escape via symlink, `net` DNS crashes, and others).
+   CI now installs the newest 1.26.x instead, so patches arrive without anyone
+   remembering to bump a pin.
+
+   Worth stating plainly: **the shipped binary was never affected.** The
+   production image builds on `golang:1.26-alpine`, which is go1.26.8 — ahead of
+   every fix version above. The vulnerable toolchain existed only in CI, which is
+   exactly the sort of thing a scanner is for and a code review is not.
+
+   `npm audit` reports no vulnerabilities in production dependencies.
 
 ---
 

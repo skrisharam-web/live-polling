@@ -39,7 +39,18 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: backend/go.mod
+          # The minor version, not go-version-file. go.mod says "go 1.26.0",
+          # which is the minimum language version the module needs — and
+          # go-version-file makes setup-go install exactly that, the very first
+          # 1.26 release. Its standard library has 22 known vulnerabilities,
+          # fixed across 1.26.1 to 1.26.6, so the vulnerability scan failed on
+          # the toolchain rather than on anything in this repository.
+          #
+          # "1.26" installs the newest 1.26.x, so security patches are picked up
+          # without anyone remembering to bump a pin. check-latest makes it ask
+          # rather than settle for whatever the runner image has cached.
+          go-version: '1.26'
+          check-latest: true
           cache-dependency-path: backend/go.sum
 
       - name: Verify formatting
@@ -134,7 +145,18 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: backend/go.mod
+          # The minor version, not go-version-file. go.mod says "go 1.26.0",
+          # which is the minimum language version the module needs — and
+          # go-version-file makes setup-go install exactly that, the very first
+          # 1.26 release. Its standard library has 22 known vulnerabilities,
+          # fixed across 1.26.1 to 1.26.6, so the vulnerability scan failed on
+          # the toolchain rather than on anything in this repository.
+          #
+          # "1.26" installs the newest 1.26.x, so security patches are picked up
+          # without anyone remembering to bump a pin. check-latest makes it ask
+          # rather than settle for whatever the runner image has cached.
+          go-version: '1.26'
+          check-latest: true
           cache-dependency-path: backend/go.sum
 
       - uses: actions/setup-node@v4
@@ -230,7 +252,18 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: backend/go.mod
+          # The minor version, not go-version-file. go.mod says "go 1.26.0",
+          # which is the minimum language version the module needs — and
+          # go-version-file makes setup-go install exactly that, the very first
+          # 1.26 release. Its standard library has 22 known vulnerabilities,
+          # fixed across 1.26.1 to 1.26.6, so the vulnerability scan failed on
+          # the toolchain rather than on anything in this repository.
+          #
+          # "1.26" installs the newest 1.26.x, so security patches are picked up
+          # without anyone remembering to bump a pin. check-latest makes it ask
+          # rather than settle for whatever the runner image has cached.
+          go-version: '1.26'
+          check-latest: true
           cache-dependency-path: backend/go.sum
 
       # Pinned rather than @latest: with @latest a release of the scanner can
