@@ -3,9 +3,16 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { Field } from '../components/ui/Field'
 import { useAuth } from '../hooks/useAuth'
+import { useSubmitGuard } from '../hooks/useSubmitGuard'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useFocusFirstError } from '../hooks/useFocusFirstError'
 import { fieldErrors, messageFor } from '../utils/errors'
 
+/** The order fields appear in, so "first error" means first on screen. */
+const FIELD_ORDER = ['name', 'email', 'password']
+
 export default function RegisterPage() {
+  useDocumentTitle('Create an account')
   const { signUp } = useAuth()
   const navigate = useNavigate()
 
@@ -13,13 +20,16 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
+  const guard = useSubmitGuard()
+
+  useFocusFirstError(errors, FIELD_ORDER)
 
   const update = (key: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setForm((current) => ({ ...current, [key]: event.target.value }))
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (isSubmitting) return
+    if (!guard.begin()) return
 
     setSubmitting(true)
     setError(null)
@@ -37,6 +47,7 @@ export default function RegisterPage() {
       }
     } finally {
       setSubmitting(false)
+      guard.end()
     }
   }
 

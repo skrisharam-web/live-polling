@@ -413,14 +413,16 @@ visible focus rings, ARIA live regions for result updates, and AA contrast.
 
 **Files.** `frontend/src/index.css`, `frontend/src/components/**`, `frontend/src/pages/**`
 
-**Tests.** Automated sweep in Chromium at 360 / 900 / 1000 px across the landing, login,
-create, dashboard, ballot and results screens, in light and dark, asserting no horizontal
-overflow and no text rendered in its own background colour. Keyboard pass over the ballot.
+**Tests.** `frontend/e2e/accessibility.mjs` walks nine screens × light and dark × 320 / 768 /
+1440 px (54 combinations) and fails on text below the WCAG AA ratio for its size, horizontal
+overflow, a page without exactly one `h1`, a missing `#main` skip target, or a page that did
+not set its own title. `frontend/e2e/ux-states.mjs` produces each async state deliberately
+and runs a keyboard-only vote.
 
-**Verification.** Phase 11 completes the accessibility work; Phase 10's sweep found no
-overflow and no invisible text.
+**Verification.** All 54 combinations pass. A vote can be cast start to finish without a
+mouse. Reduced motion is honoured (bars snap instead of animating).
 
-**Status.** `IN PROGRESS`
+**Status.** `DONE`
 
 ---
 

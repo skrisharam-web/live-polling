@@ -6,6 +6,8 @@ import { ApiError } from '../api/client'
 import { LiveStatusBadge } from '../components/results/LiveStatusBadge'
 import { ResultsAnnouncement, ResultsList } from '../components/results/ResultsList'
 import { usePollResults } from '../hooks/usePollResults'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useDelayedFlag } from '../hooks/useDelayedFlag'
 
 /**
  * The live results view.
@@ -23,11 +25,20 @@ export default function PollResultsPage() {
     enabled: Boolean(pollId),
   })
 
+  useDocumentTitle(pollQuery.data ? `${pollQuery.data.poll.question} — results` : 'Loading poll')
+
   const { results, isLoading, error, connection, refresh } = usePollResults(pollId)
 
-  if (pollQuery.isPending || isLoading) {
+  const isBusy = pollQuery.isPending || isLoading
+  const showSkeleton = useDelayedFlag(isBusy)
+
+  if (isBusy) {
+    // Nothing is rendered for a wait too short to notice; a skeleton that
+    // flashes in and out makes a fast page feel unstable.
+    if (!showSkeleton) return <main className="page page--narrow" id="main" aria-busy="true" />
+
     return (
-      <main className="page page--narrow" aria-busy="true">
+      <main className="page page--narrow" id="main" aria-busy="true">
         {/* A skeleton shaped like the real thing, so nothing jumps when it loads. */}
         <div className="skeleton skeleton--title" />
         <div className="skeleton skeleton--bar" />
@@ -41,7 +52,7 @@ export default function PollResultsPage() {
   if (failure || !results || !pollQuery.data) {
     const notFound = failure instanceof ApiError && failure.isNotFound
     return (
-      <main className="page page--narrow">
+      <main className="page page--narrow" id="main">
         <h1>{notFound ? 'That poll does not exist' : 'We could not load these results'}</h1>
         <p className="page__lead">
           {notFound
@@ -60,7 +71,7 @@ export default function PollResultsPage() {
   const poll = pollQuery.data.poll
 
   return (
-    <main className="page page--narrow">
+    <main className="page page--narrow" id="main">
       <div className="results">
         <header className="results__heading">
           <h1 className="results__question">{poll.question}</h1>

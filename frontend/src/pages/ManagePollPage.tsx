@@ -10,6 +10,8 @@ import { ShareLink } from '../components/polls/ShareLink'
 import { usePollResults } from '../hooks/usePollResults'
 import { messageFor } from '../utils/errors'
 import { formatDate, shareUrl } from '../utils/formatting'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useDelayedFlag } from '../hooks/useDelayedFlag'
 
 /**
  * Managing a poll you own.
@@ -33,6 +35,8 @@ export default function ManagePollPage() {
     enabled: Boolean(pollId),
     retry: false,
   })
+
+  useDocumentTitle(pollQuery.data ? `${pollQuery.data.poll.question} — manage` : 'Loading poll')
 
   const { results, connection, refresh } = usePollResults(pollId, { enabled: !pollQuery.isError })
 
@@ -61,7 +65,14 @@ export default function ManagePollPage() {
     onError: (cause) => setActionError(messageFor(cause, 'The poll could not be deleted.')),
   })
 
-  if (pollQuery.isPending) {
+  const isBusy = pollQuery.isPending
+  const showSkeleton = useDelayedFlag(isBusy)
+
+  if (isBusy) {
+    // Nothing is rendered for a wait too short to notice; a skeleton that
+    // flashes in and out makes a fast page feel unstable.
+    if (!showSkeleton) return <main className="page page--narrow" id="main" aria-busy="true" />
+
     return (
       <main className="page page--narrow" id="main" aria-busy="true">
         <div className="skeleton skeleton--title" />

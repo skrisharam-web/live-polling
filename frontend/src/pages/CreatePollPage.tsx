@@ -5,9 +5,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createPoll } from '../api/polls'
 import { Field } from '../components/ui/Field'
 import { ShareLink } from '../components/polls/ShareLink'
+import { useFocusFirstError } from '../hooks/useFocusFirstError'
+import { useSubmitGuard } from '../hooks/useSubmitGuard'
 import { fieldErrors, messageFor } from '../utils/errors'
 import { shareUrl } from '../utils/formatting'
 import type { Poll } from '../types/poll'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const MIN_OPTIONS = 2
 const MAX_OPTIONS = 10
@@ -20,6 +23,7 @@ const MAX_OPTIONS = 10
  * mechanics.
  */
 export default function CreatePollPage() {
+  useDocumentTitle('Create a poll')
   const queryClient = useQueryClient()
 
   const [question, setQuestion] = useState('')
@@ -29,9 +33,15 @@ export default function CreatePollPage() {
   const [created, setCreated] = useState<Poll | null>(null)
 
   const optionRefs = useRef<(HTMLInputElement | null)[]>([])
+  const guard = useSubmitGuard()
+
+  // A question error focuses the question; an options error focuses the first
+  // option, which is where the fix starts.
+  useFocusFirstError(errors, ['question'])
 
   const mutation = useMutation({
     mutationFn: createPoll,
+    onSettled: () => guard.end(),
     onSuccess: ({ poll }) => {
       setCreated(poll)
       setErrors({})
@@ -71,7 +81,9 @@ export default function CreatePollPage() {
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    if (mutation.isPending) return
+    // The ref flips synchronously; mutation.isPending would still read false for
+    // a second click in the same tick.
+    if (!guard.begin()) return
     mutation.mutate({ question, options })
   }
 

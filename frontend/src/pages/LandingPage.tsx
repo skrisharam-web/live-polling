@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import { useAuth } from '../hooks/useAuth'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 /**
  * The landing page says what Pulse does in a sentence and gets out of the way.
@@ -9,6 +10,7 @@ import { useAuth } from '../hooks/useAuth'
  * to do is start a poll, so that is the only thing with any weight on the page.
  */
 export default function LandingPage() {
+  useDocumentTitle('Live polling')
   const { user } = useAuth()
 
   return (

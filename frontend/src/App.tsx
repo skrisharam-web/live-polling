@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router-dom'
 
+import { ApiError } from './api/client'
+
 import { AuthProvider } from './context/AuthContext'
 import { router } from './router'
 
@@ -15,7 +17,16 @@ import { router } from './router'
  */
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false },
+    queries: {
+      // A 404 or a 403 is a decision, not a hiccup: retrying it cannot change
+      // the answer and only delays telling the user. Retry once for the failures
+      // that a second attempt can actually fix.
+      retry: (failureCount, error) => {
+        if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false
+        return failureCount < 1
+      },
+      refetchOnWindowFocus: false,
+    },
     mutations: { retry: 0 },
   },
 })

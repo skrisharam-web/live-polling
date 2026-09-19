@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 
 import { AppLayout } from '../components/layout/AppLayout'
 import { RequireAuth } from '../components/layout/RequireAuth'
+import { RouteError } from '../components/layout/RouteError'
 import CreatePollPage from '../pages/CreatePollPage'
 import DashboardPage from '../pages/DashboardPage'
 import LandingPage from '../pages/LandingPage'
@@ -19,6 +20,8 @@ import RegisterPage from '../pages/RegisterPage'
 export const router = createBrowserRouter([
   {
     element: <AppLayout />,
+    // A rendering failure anywhere below lands here instead of a blank page.
+    errorElement: <RouteError />,
     children: [
       { path: '/', element: <LandingPage /> },
       { path: '/login', element: <LoginPage /> },

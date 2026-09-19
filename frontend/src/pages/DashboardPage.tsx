@@ -5,6 +5,8 @@ import { listMyPolls } from '../api/polls'
 import { useAuth } from '../hooks/useAuth'
 import { formatDate, pluralise } from '../utils/formatting'
 import { messageFor } from '../utils/errors'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useDelayedFlag } from '../hooks/useDelayedFlag'
 
 /**
  * The signed-in user's polls.
@@ -14,12 +16,15 @@ import { messageFor } from '../utils/errors'
  * fewer polls on a phone.
  */
 export default function DashboardPage() {
+  useDocumentTitle('Your polls')
   const { user } = useAuth()
 
   const query = useQuery({
     queryKey: ['myPolls'],
     queryFn: ({ signal }) => listMyPolls(signal),
   })
+
+  const showSkeleton = useDelayedFlag(query.isPending)
 
   return (
     <main className="page" id="main">
@@ -30,7 +35,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {query.isPending && (
+      {query.isPending && showSkeleton && (
         <ul className="poll-list" aria-busy="true">
           {[0, 1, 2].map((row) => (
             <li key={row} className="poll-row">

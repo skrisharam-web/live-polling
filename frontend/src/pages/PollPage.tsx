@@ -11,6 +11,8 @@ import { VoteForm } from '../components/polls/VoteForm'
 import { usePollResults, resultsKey } from '../hooks/usePollResults'
 import { ErrorCode } from '../types/api'
 import type { PollResults } from '../types/poll'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useDelayedFlag } from '../hooks/useDelayedFlag'
 
 /**
  * The public poll: the screen the audience actually uses.
@@ -31,6 +33,8 @@ export default function PollPage() {
     queryFn: ({ signal }) => getPoll(pollId as string, signal),
     enabled: Boolean(pollId),
   })
+
+  useDocumentTitle(pollQuery.data ? pollQuery.data.poll.question : 'Loading poll')
 
   const { results, isLoading, error, connection, refresh } = usePollResults(pollId)
 
@@ -54,7 +58,14 @@ export default function PollPage() {
     },
   })
 
-  if (pollQuery.isPending || isLoading) {
+  const isBusy = pollQuery.isPending || isLoading
+  const showSkeleton = useDelayedFlag(isBusy)
+
+  if (isBusy) {
+    // Nothing is rendered for a wait too short to notice; a skeleton that
+    // flashes in and out makes a fast page feel unstable.
+    if (!showSkeleton) return <main className="page page--narrow" id="main" aria-busy="true" />
+
     return (
       <main className="page page--narrow" id="main" aria-busy="true">
         <div className="skeleton skeleton--title" />

@@ -1,5 +1,7 @@
 import { useId, useState } from 'react'
 
+import { useSubmitGuard } from '../../hooks/useSubmitGuard'
+
 import type { Poll } from '../../types/poll'
 import './vote-form.css'
 
@@ -21,10 +23,17 @@ interface Props {
 export function VoteForm({ poll, isSubmitting, error, onSubmit }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const groupLabelId = useId()
+  const guard = useSubmitGuard()
+
+  // Release the guard whenever the parent finishes, so a rejected vote can be
+  // retried rather than leaving the form permanently locked.
+  if (!isSubmitting) guard.end()
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
-    if (selected && !isSubmitting) onSubmit(selected)
+    if (!selected) return
+    if (!guard.begin()) return
+    onSubmit(selected)
   }
 
   return (

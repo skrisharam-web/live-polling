@@ -3,9 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { Field } from '../components/ui/Field'
 import { useAuth } from '../hooks/useAuth'
+import { useSubmitGuard } from '../hooks/useSubmitGuard'
 import { messageFor } from '../utils/errors'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export default function LoginPage() {
+  useDocumentTitle('Sign in')
   const { signIn } = useAuth()
   const navigate = useNavigate()
 
@@ -13,10 +16,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
+  const guard = useSubmitGuard()
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (isSubmitting) return
+    if (!guard.begin()) return
 
     setSubmitting(true)
     setError(null)
@@ -29,6 +33,7 @@ export default function LoginPage() {
       setError(messageFor(cause, 'Incorrect e-mail address or password.'))
     } finally {
       setSubmitting(false)
+      guard.end()
     }
   }
 
