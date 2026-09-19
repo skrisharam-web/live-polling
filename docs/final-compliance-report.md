@@ -80,6 +80,13 @@ API on separate origins.
 | `e2e/accessibility.mjs` | 54 screen/theme/width combinations pass |
 | `e2e/ux-states.mjs` | 18/18 |
 | `e2e/realtime.mjs` | 19/19, including over WSS cross-origin |
+| `govulncheck` | clean in CI (cannot run in the sandbox — `vuln.go.dev` is blocked there) |
+
+**Continuous integration is green on the current head** (`567809b`): all four
+jobs — backend (gofmt, vet, tests, race), frontend (lint, build, audit),
+vulnerability scan, and browser checks including the three-session realtime
+test. The browser job had never actually executed until this point, because it
+depends on the backend job and that had been failing since CI was introduced.
 
 **A warning about the green tick.** A bare `go test ./...` without
 `TEST_MONGODB_URI` and `TEST_REDIS_URL` skips the entire integration suite and
@@ -134,6 +141,19 @@ a process, and because each of these would have shipped.
 7. **A handler parsing `bson.ObjectID`**, found in the Phase 17 layering review.
 8. **Documentation that was confidently wrong**: the option maximum, an
    undocumented `expiresAt` feature, and a Go version that would not have built.
+9. **CI built with a vulnerable toolchain.** `go.mod` declares `go 1.26.0` as the
+   minimum language version; `actions/setup-go` read that as an exact version and
+   installed the first 1.26 release, whose standard library carries 22 known
+   vulnerabilities fixed across 1.26.1 to 1.26.6. Local runs never saw it because
+   `GOTOOLCHAIN=auto` had been fetching go1.26.8 all along.
+10. **A reachable advisory in a transitive dependency** — QPACK memory exhaustion
+    in `quic-go`, pulled in by Gin for HTTP/3 this application never uses. It was
+    hidden behind the toolchain findings until those cleared.
+11. **The browser suite had never actually run in CI.** It depends on the backend
+    job, which had been failing, so it was skipped every time. On its first real
+    run it failed: `frontend/.env` supplies the API origin locally and is
+    gitignored, CI never set it, so the app called its own origin for `/api` and
+    every session check failed.
 
 ---
 
