@@ -42,9 +42,9 @@ or forge them.
 options rendered match what was submitted. Backend verified live with curl and by
 `TestPollLifecycle`.
 
-**Status.** `DONE` (backend) — `POST /api/polls` behind `RequireAuth`, owner taken from the
-session, option IDs minted server-side from crypto/rand, question/options/expiry validated.
-The UI lands in Phase 10.
+**Status.** `DONE` — backend as described, and the create-poll screen drives it: question
+first, option list with add/remove, and the share link presented on success. Verified in a
+browser end to end.
 
 ---
 
@@ -66,8 +66,9 @@ and the payload contains no owner-private fields.
 `GET /api/polls/:id`, `POST /api/polls/:id/vote` and `GET /api/polls/:id/results` all verified
 unauthenticated, and the poll payload asserted free of `ownerId` and the owner's e-mail.
 
-**Status.** `DONE` (backend) — read, vote and results are all public. The page lands in
-Phase 10.
+**Status.** `DONE` — the share link resolves to a public voting page that needs no account.
+Verified in a browser: two separate browser contexts opened the link, voted, and saw results
+in the same view.
 
 ---
 
@@ -412,11 +413,14 @@ visible focus rings, ARIA live regions for result updates, and AA contrast.
 
 **Files.** `frontend/src/index.css`, `frontend/src/components/**`, `frontend/src/pages/**`
 
-**Tests.** Manual viewport checks at 375 / 768 / 1440 px; keyboard-only pass.
+**Tests.** Automated sweep in Chromium at 360 / 900 / 1000 px across the landing, login,
+create, dashboard, ballot and results screens, in light and dark, asserting no horizontal
+overflow and no text rendered in its own background colour. Keyboard pass over the ballot.
 
-**Verification.** Phase 11 checklist.
+**Verification.** Phase 11 completes the accessibility work; Phase 10's sweep found no
+overflow and no invisible text.
 
-**Status.** `PLANNED`
+**Status.** `IN PROGRESS`
 
 ---
 

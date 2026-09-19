@@ -6,7 +6,6 @@ import { ApiError } from '../api/client'
 import { LiveStatusBadge } from '../components/results/LiveStatusBadge'
 import { ResultsAnnouncement, ResultsList } from '../components/results/ResultsList'
 import { usePollResults } from '../hooks/usePollResults'
-import './results-page.css'
 
 /**
  * The live results view.

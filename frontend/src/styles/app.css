@@ -1,0 +1,525 @@
+/* Page shell. Kept here rather than in index.css so the tokens file stays a
+   design system and not a grab bag of layouts. */
+
+.page {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.page--narrow {
+  max-width: 42rem;
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: var(--space-6);
+    padding-bottom: var(--space-7);
+  }
+}
+
+.page__lead {
+  color: var(--color-text-muted);
+  max-width: 60ch;
+}
+
+.results__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The question is context on this screen, not the headline: the bars are what
+   people are here to watch. It stays an h1 for document structure and drops to
+   the size the design system gives poll questions. */
+.results__question {
+  font-size: clamp(1.25rem, 1.05rem + 0.8vw, 1.6rem);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge--closed {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  /* 44px minimum target, so a thumb on a phone hits it reliably. */
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-weight: 600;
+  cursor: pointer;
+  /* Links rendered as buttons must not keep the anchor underline: a button is
+     recognised by its shape, and the underline makes it read as broken. */
+  text-decoration: none;
+  transition: background-color var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.button--primary {
+  background: var(--color-brand);
+  color: var(--color-brand-contrast);
+}
+
+.button--primary:hover {
+  background: var(--color-brand-strong);
+}
+
+.button--primary:active {
+  background: var(--color-brand-strong);
+  filter: brightness(0.94);
+}
+
+.button:disabled,
+.button[aria-disabled='true'] {
+  cursor: not-allowed;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+/* Skeletons match the dimensions of what replaces them. */
+.skeleton {
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-sm);
+}
+
+.skeleton--title {
+  height: 2rem;
+  width: min(100%, 24rem);
+}
+
+.skeleton--bar {
+  height: 2.75rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Header
+   One header everywhere. On a public poll page it stays minimal: a voter who
+   arrived from a shared link is not a signup lead.
+   --------------------------------------------------------------------------- */
+
+.header {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.header__inner {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .header__inner {
+    padding: var(--space-3) var(--space-6);
+  }
+}
+
+.header__brand {
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.header__mark {
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.header__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.header__link {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.9375rem;
+  transition: color var(--transition), background-color var(--transition);
+}
+
+.header__link:hover {
+  color: var(--color-text);
+  background: var(--color-surface-muted);
+}
+
+.header__link[aria-current='page'] {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.header__user {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .header__user {
+    display: inline;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Buttons
+   --------------------------------------------------------------------------- */
+
+.button--secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.button--secondary:hover {
+  background: var(--color-surface-muted);
+}
+
+.button--danger {
+  background: var(--color-surface);
+  border-color: var(--color-border-strong);
+  color: var(--color-danger);
+}
+
+.button--danger:hover {
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger);
+}
+
+.button--small {
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.button--block {
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   Forms
+   --------------------------------------------------------------------------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 34rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field__label {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.field__hint {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.field__input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  transition: border-color var(--transition);
+}
+
+.field__input:hover {
+  border-color: var(--color-text-muted);
+}
+
+.field__input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.field__input--question {
+  font-size: 1.125rem;
+  min-height: 3.25rem;
+}
+
+.field__error {
+  font-size: 0.875rem;
+  color: var(--color-danger);
+}
+
+/* A form-level message: a failed sign-in, a conflict. Tinted rather than boxed,
+   because a border plus a tint plus a shadow on one element is noise. */
+.notice {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+}
+
+.notice--error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.notice--success {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.notice--info {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Badges
+   --------------------------------------------------------------------------- */
+
+.badge--active {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+/* ---------------------------------------------------------------------------
+   Share link — a first-class object, not a line of text.
+   --------------------------------------------------------------------------- */
+
+.share {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.share__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.share__url {
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  overflow-x: auto;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+
+/* ---------------------------------------------------------------------------
+   Poll list (dashboard) — a list of rows, not a grid of cards.
+   --------------------------------------------------------------------------- */
+
+.poll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.poll-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.poll-row:first-child {
+  border-top: 1px solid var(--color-border);
+}
+
+.poll-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1 1 18rem;
+}
+
+.poll-row__question {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.poll-row__question a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.poll-row__question a:hover {
+  text-decoration: underline;
+}
+
+.poll-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.poll-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------------
+   Empty states — one sentence of context plus the action that resolves it.
+   --------------------------------------------------------------------------- */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.empty__text {
+  color: var(--color-text-muted);
+  max-width: 48ch;
+}
+
+/* ---------------------------------------------------------------------------
+   Utilities
+   --------------------------------------------------------------------------- */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.section-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* Option editor on the create page. */
+
+.option-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  counter-reset: option;
+}
+
+.option-list__item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.option-list__item .field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.landing h1 {
+  max-width: 18ch;
+}
+
+.landing__note {
+  font-size: 0.9375rem;
+}
+
+.poll__question {
+  font-size: clamp(1.375rem, 1.1rem + 1.2vw, 1.75rem);
+}
+
+/* Inline confirmation for a consequential action. Tinted, not boxed in a modal:
+   the decision belongs next to the control that triggered it. */
+
+.confirm {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  border-left: 3px solid var(--color-warning);
+}
+
+.manage__actions {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+/* A form's submit button sizes to its label on a wide screen and spans the
+   column on a narrow one, where a full-width target is easier to hit and there
+   is no spare width to waste. */
+.form > .button {
+  align-self: stretch;
+}
+
+@media (min-width: 640px) {
+  .form > .button {
+    align-self: flex-start;
+  }
+}
