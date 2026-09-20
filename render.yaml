@@ -49,7 +49,11 @@ services:
   - type: web
     name: livepolling-web
     runtime: static
-    buildCommand: cd frontend && npm ci && npm run build
+    # --include=dev is not redundant. Render sets NODE_ENV=production for
+    # builds, which makes npm omit devDependencies — and vite and typescript are
+    # devDependencies, because they build the bundle rather than ship in it.
+    # Without this the build fails with "vite: not found".
+    buildCommand: cd frontend && npm ci --include=dev && npm run build
     staticPublishPath: ./frontend/dist
     envVars:
       - key: VITE_API_URL
